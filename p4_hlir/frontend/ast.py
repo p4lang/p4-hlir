@@ -209,6 +209,7 @@ class P4HeaderType(P4NamedObject):
 
     def is_marked(self):
         if self.name == "standard_metadata_t": return True
+        elif self.name == "intrinsic_metadata_t": return True
         else: return self._mark
 
 class P4HeaderInstance(P4NamedObject):
@@ -233,6 +234,7 @@ class P4HeaderInstanceMetadata(P4HeaderInstance):
 
     def is_marked(self):
         if self.name == "standard_metadata": return True
+        elif self.name == "intrinsic_metadata": return True
         else: return self._mark
 
 class P4FieldList(P4NamedObject):
