@@ -193,9 +193,9 @@ def p4_control_flow_to_table_graph(hlir, call_sequence):
                                               None, None, visited)
 
 def _p4_control_flow_to_table_graph(hlir,
-                                      call_sequence, parent_fn,
-                                      conditional_barrier,
-                                      visited):
+                                    call_sequence, parent_fn,
+                                    conditional_barrier,
+                                    visited):
     if type(call_sequence) is p4_imperatives.p4_control_flow:
         parent_fn = call_sequence
         call_sequence = parent_fn.call_sequence
@@ -338,7 +338,6 @@ def _p4_control_flow_to_table_graph(hlir,
                 visited
             )
 
-
         for parent in parents:
             for label, edge in parent.next_.items():
                 if edge == None:
@@ -347,8 +346,9 @@ def _p4_control_flow_to_table_graph(hlir,
 
         if not entry:
             entry = call_entry
-        
-        parents = next_parents
+
+        if next_parents:
+            parents = next_parents
 
     return entry, parents
 
