@@ -699,7 +699,7 @@ def check_P4HeaderType(self, symbols, header_fields, objects, types = None):
                     % (self.name, self.filename, self.lineno)
         P4TreeNode.print_error(error_msg)
 
-    if self.max_length and self.max_length.i < total_length:
+    if self.max_length and 8 * self.max_length.i < total_length:
         error_msg = "Header type %s defined in file %s at line %d"\
                     " has an invalid max_length attribute"\
                     % (self.name, self.filename, self.lineno)
