@@ -264,7 +264,7 @@
 		"access" : "write"
 	    },
 	    "index" : {
-		"type" : ["int", "table_entry_data"],
+		"type" : ["int", "table_entry_data", "field"],
 		"access" : "read",
 		"data_width" : 32
 	    }
