@@ -22,7 +22,7 @@ import ast
 import inspect
 import logging
 from p4_hlir.util.OrderedSet import OrderedSet
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 p4_match_type = p4_create_enum("p4_match_type", [
     "P4_MATCH_EXACT",
@@ -405,6 +405,46 @@ def _find_unused_nodes_step(entry_point):
     for a, nt in entry_point.next_.items():
         _find_unused_nodes_step(nt)
 
+def _find_conditional_barrier(entry_point, node, visited):
+    def sorted_tuple_from_set(s):
+        return tuple(sorted(list(s)))
+
+    if entry_point in visited: return visited[entry_point]
+    if entry_point == node:
+        visited[entry_point] = True
+        return True
+    if entry_point is None:
+        return False
+    possible_next = set(entry_point.next_.values())
+    if len(possible_next) == 1:
+        r = _find_conditional_barrier(possible_next.pop(), node, visited)
+        visited[entry_point] = r
+        return r
+    results = {}
+    for nt in possible_next:
+        results[nt] = _find_conditional_barrier(nt, node, visited)
+    diff_results = set(results.values())
+    if len(diff_results) == 1:
+        r = diff_results.pop()
+        visited[entry_point] = r
+        return r
+    if {True, False} <= diff_results:
+        assert({True, False} == diff_results)
+        cond = set()
+        for nt, v in results.items():
+            if not v: continue
+            for a, n in entry_point.next_.items():
+                if n == nt: cond.add(a)
+        if len(cond) == 1: cond = cond.pop()
+        else: cond = sorted_tuple_from_set(cond)
+        r = (entry_point, cond)
+        visited[entry_point] = r
+        return r
+    for r in diff_results:
+        if type(r) is not bool:
+            visited[entry_point] = r
+            return r
+
 def _update_conditional_barriers(hlir):
     for _, node in hlir.p4_nodes.items():
         if not node._mark_used: continue
@@ -433,7 +473,6 @@ def _update_conditional_barriers(hlir):
     #         cb = cb[0].conditional_barrier
     #     if cb is not None:
     #         node.conditional_barrier = cb
-
 
 def _remove_unused_conditions(hlir):
     change = True
