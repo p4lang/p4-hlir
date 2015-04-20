@@ -1132,6 +1132,7 @@ class P4Parser:
     def p_counter_type(self, p):
         """ counter_type : BYTES
                          | PACKETS
+                         | PACKETS_AND_BYTES
         """
         p[0] = p[1]
 

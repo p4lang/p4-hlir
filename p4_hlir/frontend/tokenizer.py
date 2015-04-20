@@ -69,7 +69,7 @@ class P4Lexer:
         'WIDTH', 'ATTRIBUTES', 'LAYOUT',
         'RESULT',
         # 'EXACT', 'TERNARY', 'LPM', 'RANGE', 'VALID',
-        'BYTES', 'PACKETS',
+        'BYTES', 'PACKETS', 'PACKETS_AND_BYTES',
         'APPLY',
         'EXTRACT', 'SET_METADATA',
         'CURRENT',

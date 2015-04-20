@@ -333,7 +333,11 @@ def dump_to_p4_P4ParserFunction(self, hlir):
     g_parse_state._pragmas = self._pragmas.copy()
 
 def dump_to_p4_P4Counter(self, hlir):
-    type_ = P4_COUNTER_BYTES if self.type_ == "bytes" else P4_COUNTER_PACKETS
+    type_ = {
+        "bytes": P4_COUNTER_BYTES,
+        "packets": P4_COUNTER_PACKETS,
+        "packets_and_bytes": P4_COUNTER_PACKETS_AND_BYTES,
+    }[self.type_]
     if self.direct_or_static:
         binding = (
             P4_DIRECT if self.direct_or_static[0] == "direct" else P4_STATIC,

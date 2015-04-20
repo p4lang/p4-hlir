@@ -22,11 +22,13 @@ p4_stateful_keywords = p4_create_enum("p4_counter_keywords", [
     "static",
     "bytes",
     "packets",
+    "packets_and_bytes",
 ])
 P4_DIRECT = p4_stateful_keywords.direct
 P4_STATIC = p4_stateful_keywords.static
 P4_COUNTER_BYTES = p4_stateful_keywords.bytes
 P4_COUNTER_PACKETS = p4_stateful_keywords.packets
+P4_COUNTER_PACKETS_AND_BYTES = p4_stateful_keywords.packets_and_bytes
 
 class p4_counter (p4_object):
     """
