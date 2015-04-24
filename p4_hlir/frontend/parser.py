@@ -2093,7 +2093,7 @@ class P4Parser:
         p[0] = None
 
     def p_action_selector_2(self, p):
-        """ action_selector : SELECTOR COLON ID SEMI
+        """ action_selector : DYNAMIC_ACTION_SELECTION COLON ID SEMI
         """
         p[0] = P4RefExpression(self.get_filename(), p.lineno(3), p[3])
 

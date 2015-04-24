@@ -90,7 +90,7 @@ class P4Lexer:
         'SUPPORT_TIMEOUT',
         'ACTION_PROFILE',
         'ACTION_SELECTOR',
-        'SELECTOR',
+        'DYNAMIC_ACTION_SELECTION',
         'SELECTION_KEY',
         'SELECTION_MODE',
         'SELECTION_TYPE',
