@@ -587,7 +587,7 @@ class P4Parser:
     def p_field_ref(self, p):
         """ field_ref : header_ref PERIOD ID
         """
-        p[0] = P4FieldRefExpression(self.get_filename(), p.lineno(1),
+        p[0] = P4FieldRefExpression(self.get_filename(), p.lineno(2),
                                     p[1], p[3])
     
     
