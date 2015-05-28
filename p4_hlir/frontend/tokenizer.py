@@ -233,6 +233,7 @@ class P4Lexer:
 
     def t_pragma_NEWLINE(self, t):
         r'\n'
+        t.lexer.lineno += t.value.count("\n")
         t.lexer.begin('INITIAL')
 
     def t_pragma_STR(self, t):
