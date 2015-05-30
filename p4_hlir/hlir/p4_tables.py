@@ -407,10 +407,50 @@ def _find_unused_nodes_step(entry_point):
 
 def _update_conditional_barriers(hlir):
     for _, node in hlir.p4_nodes.items():
-        cb = node.conditional_barrier
-        while cb is not None and not cb[0]._mark_used:
-            cb = cb[0].conditional_barrier
-        node.conditional_barrier = cb
+        if not node._mark_used: continue
+        node.conditional_barrier = None
+        for ingress_ptr in hlir.p4_ingress_ptr.keys():
+            if not node.conditional_barrier:
+                node.conditional_barrier = _find_conditional_barrier(
+                    ingress_ptr, node, {}
+                )
+            if hlir.p4_egress_ptr and not node.conditional_barrier:
+                node.conditional_barrier = _find_conditional_barrier(
+                    hlir.p4_egress_ptr, node, {}
+                )
+
+    for _, node in hlir.p4_nodes.items():
+        if not node._mark_used: continue
+        if node.conditional_barrier == True:
+            node.conditional_barrier = None
+        # print node, node.conditional_barrier
+        
+    
+    # for _, node in hlir.p4_nodes.items():
+    #     if not node._mark_used: continue
+    #     cb = node.conditional_barrier
+    #     while cb is not None and not cb[0]._mark_used:
+    #         cb = cb[0].conditional_barrier
+    #     if cb is not None:
+    #         node.conditional_barrier = cb
+
+
+def _remove_unused_conditions(hlir):
+    change = True
+    while change:
+        change = False
+        conditions_used = set()
+        for _, node in hlir.p4_nodes.items():
+            if not node._mark_used: continue
+            cb = node.conditional_barrier
+            if cb and isinstance(cb[0], p4_conditional_node):
+                conditions_used.add(cb[0])
+        for _, node in hlir.p4_conditional_nodes.items():
+            if not node._mark_used: continue
+            if node not in conditions_used:
+                print "removing useless condition:", node
+                node._mark_used = False
+                change = True
 
 def _purge_unused_nodes(hlir):
     for _, node in hlir.p4_nodes.items():
@@ -422,6 +462,8 @@ def _purge_unused_nodes(hlir):
         _find_unused_nodes_step(hlir.p4_egress_ptr)
 
     _update_conditional_barriers(hlir)
+
+    _remove_unused_conditions(hlir)
 
     for _, node in hlir.p4_nodes.items():
         if not node._mark_used:
