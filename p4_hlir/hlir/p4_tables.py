@@ -445,12 +445,26 @@ def _remove_unused_conditions(hlir):
             cb = node.conditional_barrier
             if cb and isinstance(cb[0], p4_conditional_node):
                 conditions_used.add(cb[0])
-        for _, node in hlir.p4_conditional_nodes.items():
-            if not node._mark_used: continue
-            if node not in conditions_used:
-                print "removing useless condition:", node
-                node._mark_used = False
-                change = True
+
+        removed_conditions = set()
+        for _, p4_node in hlir.p4_nodes.items():
+            if not p4_node._mark_used: continue
+            for a, nt in p4_node.next_.items():
+                if not nt: continue
+                assert(nt._mark_used)
+                if not isinstance(nt, p4_conditional_node): continue
+                if nt.next_[True] == nt.next_[False]:
+                    assert(nt not in conditions_used)
+                    p4_node.next_[a] = nt.next_[True]
+                    removed_conditions.add(nt)
+
+        assert(not (conditions_used & removed_conditions))
+
+        for c in removed_conditions:
+            print "removing useless condition:", c
+            # print c.next_
+            c._mark_used = False
+            change = True
 
 def _purge_unused_nodes(hlir):
     for _, node in hlir.p4_nodes.items():
