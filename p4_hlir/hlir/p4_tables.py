@@ -528,6 +528,9 @@ def optimize_table_graph(hlir):
 
     _purge_unused_nodes(hlir)
 
+    # for _, p4_node in hlir.p4_nodes.items():
+    #     print p4_node, p4_node.conditional_barrier
+
 def print_graph(entry, tab = ""):
     for k, next_table in entry.next_.items():
         print tab, entry, "---", k, "--->", next_table

@@ -232,7 +232,7 @@ class rmt_table_dependency():
     def is_predication_dependency(self):
         if self.to.conditional_barrier and\
            self.from_ == self.to.conditional_barrier[0] and\
-           type(self.to.conditional_barrier[1]) in {set, str}:
+           type(self.to.conditional_barrier[1]) in {set, str, tuple, p4.p4_action}:
             return True
         return False
 
