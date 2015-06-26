@@ -67,7 +67,7 @@ class HLIR():
     def add_src_txt(self, *args):
         self.source_txt += args
 
-    def build(self, optimize=True, analyze=True):
+    def build(self, optimize=True, analyze=True, dump_preprocessed=False):
         # Preprocess all program text
         preprocessed_sources = []
         try:
@@ -83,7 +83,7 @@ class HLIR():
 
                 preprocessed_sources.append(preprocessor.preprocess_file(
                     absolute_source,
-                    dest=None
+                    dest='%s.i'%p4_source if dump_preprocessed else None
                 ))
 
             for p4_txt in self.source_txt:
