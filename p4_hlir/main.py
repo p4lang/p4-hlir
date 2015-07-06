@@ -23,6 +23,7 @@ from collections import OrderedDict
 import hlir.p4 as p4
 import itertools
 import logging
+import pkg_resources
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,9 @@ class HLIR():
 
         self.p4_ingress_ptr = {}
         self.p4_egress_ptr = None
+
+    def version(self):
+        return pkg_resources.require("p4-hlir")[0].version
         
     def add_src_files(self, *args):
         self.source_files += args
