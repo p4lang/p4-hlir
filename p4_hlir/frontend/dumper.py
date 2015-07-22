@@ -16,7 +16,6 @@ from ast import *
 from collections import OrderedDict
 import json
 import os
-from pkg_resources import resource_string
 
 
 from p4_hlir.hlir.p4_core import p4_compiler_msg
@@ -138,13 +137,12 @@ class P4HlirDumper:
         P4ParserExceptionDrop.dump_to_p4 = dump_to_p4_P4ParserExceptionDrop
         P4ParserExceptionReturn.dump_to_p4 = dump_to_p4_P4ParserExceptionReturn
 
-    def dump_to_p4(self, hlir, p4_program):
-        primitives_json = resource_string(__name__, 'primitives.json')
-        self._dump_std_primitives(hlir, primitives_json)
+    def dump_to_p4(self, hlir, p4_program, primitives):
+        self._dump_std_primitives(hlir, _decode_dict(primitives))
         p4_program.dump_to_p4(hlir)
 
 
-    def _dump_std_primitives(self, hlir, primitives_json):
+    def _dump_std_primitives(self, hlir, primitives):
         p4_types = {
             "header_instance" : p4_header_instance,
             "int" : int,
@@ -157,7 +155,6 @@ class P4HlirDumper:
             "register" : p4_register,
         }
 
-        primitives = json.loads(primitives_json, object_hook=_decode_dict)
         for name, data in primitives.items():
             properties = data["properties"]
             signature = data["args"]

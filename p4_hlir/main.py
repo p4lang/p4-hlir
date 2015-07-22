@@ -23,6 +23,7 @@ from collections import OrderedDict
 import hlir.p4 as p4
 import itertools
 import logging
+import json
 import pkg_resources
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,7 @@ class HLIR():
         self.source_files = [] + list(args)
         self.source_txt = []
         self.preprocessor_args = [] 
+        self.primitives = []
 
         self.p4_objects = []
 
@@ -59,6 +61,9 @@ class HLIR():
         self.p4_ingress_ptr = {}
         self.p4_egress_ptr = None
 
+        self.primitives = json.loads(pkg_resources.resource_string('p4_hlir.frontend', 'primitives.json'))
+
+
     def version(self):
         return pkg_resources.require("p4-hlir")[0].version
         
@@ -70,6 +75,9 @@ class HLIR():
 
     def add_src_txt(self, *args):
         self.source_txt += args
+
+    def add_primitives (self, primitives_dict):
+        self.primitives.update(primitives_dict)
 
     def build(self, optimize=True, analyze=True, dump_preprocessed=False):
         # Preprocess all program text
@@ -116,7 +124,7 @@ class HLIR():
 
         # Semantic checking, round 1
         sc = P4SemanticChecker()
-        errors_cnt = sc.semantic_check(p4_program)
+        errors_cnt = sc.semantic_check(p4_program, self.primitives)
         if errors_cnt > 0:
             print errors_cnt, "errors during semantic checking"
             print "Interrupting compilation"
@@ -126,7 +134,7 @@ class HLIR():
 
         # Dump AST to HLIR objects
         d = P4HlirDumper()
-        d.dump_to_p4(self, p4_program)
+        d.dump_to_p4(self, p4_program, self.primitives)
 
         # Semantic checking, round 2
         # TODO: merge these two rounds and try to separate name resolution from

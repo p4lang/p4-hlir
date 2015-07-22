@@ -17,8 +17,6 @@ from collections import defaultdict
 import json
 import os
 import unused_removal
-from pkg_resources import resource_string
-
 
 class ObjectTable:
     def __init__(self):
@@ -194,13 +192,12 @@ class P4SemanticChecker:
         P4ActionCall.check_stateful_refs = check_stateful_refs_P4ActionCall
         P4RefExpression.check_stateful_refs = check_stateful_refs_P4RefExpression
 
-    def semantic_check(self, p4_program):
+    def semantic_check(self, p4_program, primitives):
         header_fields = defaultdict(set)
         symbols = SymbolTable()
         objects = ObjectTable()
 
-        primitives_json = resource_string(__name__, 'primitives.json')
-        self._add_std_primitives(p4_program, primitives_json)
+        self._add_std_primitives(p4_program, primitives)
         self._add_std_metadata(p4_program)
 
         P4TreeNode.reset_errors_cnt()
@@ -226,9 +223,8 @@ class P4SemanticChecker:
         p4_program.objects = [std_t, std] + p4_program.objects
 
     def _add_std_primitives(self, p4_program,
-                            primitives_json):
+                            primitives):
         std_primitives = []
-        primitives = json.loads(primitives_json)
         for name, data in primitives.items():
             # TODO: actual file and linenumber
             properties = data["properties"]
