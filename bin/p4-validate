@@ -20,7 +20,7 @@ import yaml
 import logging
 
 parser = argparse.ArgumentParser(description='P4 source code compiler')
-parser.add_argument('sources', metavar='source', type=str, nargs='*',
+parser.add_argument('sources', metavar='source', type=str, nargs='+',
                     help='a list of source files to include in the P4 program')
 parser.add_argument('--dump_hlir', action='store_true',
                     default = False, help='dump hlir after parsing')

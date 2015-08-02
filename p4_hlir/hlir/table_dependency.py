@@ -516,8 +516,9 @@ class rmt_table_graph():
 # parses the control flow graph exposed in HLIR
 # p4_node can be a p4_table or p4_conditional_node
 def parse_p4_table_graph(table_graph, p4_node,
-                            parent = None,
-                            action_set = None):
+                         parent = None,
+                         action_set = None):
+    if not p4_node: return # empty control flow
     next_tables = p4_node.next_
     visited = p4_node in table_graph
     if visited:
@@ -587,18 +588,13 @@ def rmt_gen_dot_table_graph_egress(out):
                                  debug = True)
 
 def annotate_hlir(hlir):
-    ingress_graph = rmt_build_table_graph_ingress(hlir)
-    egress_graph = None
+    for ingress_ptr in hlir.p4_ingress_ptr:
+        ingress_graph = rmt_build_table_graph_ingress(hlir)
+        ingress_graph.transitive_reduction()
+        ingress_graph.annotate_hlir()
+
     if hlir.p4_egress_ptr is not None:
         egress_graph = rmt_build_table_graph_egress(hlir)
-
-    ingress_graph.transitive_reduction()
-
-    if egress_graph is not None:
         egress_graph.transitive_reduction()
-
-    ingress_graph.annotate_hlir()
-
-    if egress_graph is not None:
         egress_graph.annotate_hlir()
 

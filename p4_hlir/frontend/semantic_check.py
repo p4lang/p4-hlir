@@ -295,6 +295,9 @@ def import_objects(p4_objects, symbols, objects):
 def import_header_fields(p4_objects, header_fields):
     for obj in p4_objects:
         if not isinstance(obj, P4HeaderType): continue
+        if obj.name in header_fields:
+            # ignore redefinition, error will be reported later
+            continue
         for field, _, _ in obj.layout:
             if field in header_fields[obj.name]:
                 error_msg = "Header type %s defined in file %s at line %d"\

@@ -47,6 +47,9 @@ class P4Lexer:
         last_cr = self.lexer.lexdata.rfind('\n', 0, token.lexpos)
         return token.lexpos - last_cr
 
+    def _error(self, s, token):
+        print s, "in file", self.filename, "at line", self.get_lineno()
+
     keywords = (
         'IF', 'ELSE', 'SELECT',
         # 'SWITCH',
@@ -102,6 +105,11 @@ class P4Lexer:
             keywords_map[keyword] = keyword
         else:
             keywords_map[keyword.lower()] = keyword
+    # for these logical ops, we use the full English word. However I am already
+    # using tokens AND, OR and NOT for bitwise ops
+    keywords_map["and"] = "LAND"
+    keywords_map["or"] = "LOR"
+    keywords_map["not"] = "LNOT"
 
     tokens = (
         # identifiers
@@ -113,7 +121,7 @@ class P4Lexer:
         # operators
         'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'MOD',
         'OR', 'AND', 'NOT', 'XOR', 'LSHIFT', 'RSHIFT',
-        'LOR', 'LAND', 'LNOT',
+        'LOR', 'LAND', 'LNOT', # see above
         'LT', 'LE', 'GT', 'GE', 'EQ', 'NE',
         
         # Delimeters
@@ -128,6 +136,8 @@ class P4Lexer:
         'PPHASH', # '#'
 
         'PRAGMA', 'STR',
+
+        # 'PPHASH',
     ) + keywords
     
     # Regular expression rules for simple tokens
@@ -142,11 +152,6 @@ class P4Lexer:
     t_XOR = r'\^'
     t_LSHIFT = r'<<'
     t_RSHIFT = r'>>'
-    # t_LOR = r'or'
-    # t_LOR = r'\|\|'
-    # t_LAND = r'and'
-    # t_LAND = r'&&'
-    # t_LNOT = r'not'
     t_LT = r'<'
     t_GT = r'>'
     t_LE = r'<='
@@ -182,18 +187,6 @@ class P4Lexer:
     string_char = r"""([^"\\\n]|"""+escape_sequence+')'
     string_literal = '"'+string_char+'*"'
 
-    def t_LAND(self, t):
-        r'and'
-        return t
-
-    def t_LOR(self, t):
-        r'or'
-        return t
-
-    def t_LNOT(self, t):
-        r'not'
-        return t
-
     def t_PRAGMA(self, t):
         r'@pragma'
         t.lexer.begin('pragma')
@@ -223,13 +216,17 @@ class P4Lexer:
     )
 
     def t_PPHASH(self, t):
-        r'[ \t]*\#'
+        r'\#'
         if self.line_pattern.match(t.lexer.lexdata, pos=t.lexer.lexpos):
             t.lexer.begin('ppline')
             self.pp_line = self.pp_filename = None
         else:
-            t.type = 'PPHASH'
             return t
+            # print "invalid '#' character at line", t.lexer.lineno
+            # # skip rest of line...
+            # line_start = self.lexer.lexdata.rfind('\n', 0, t.lexpos)
+            # line_end = self.lexer.lexdata.find('\n', t.lexpos, -1)
+            # t.lexer.skip(line_end - line_start)
 
     def t_pragma_NEWLINE(self, t):
         r'\n'
@@ -295,13 +292,9 @@ class P4Lexer:
 
         # Error handling rule
     def t_error(self,t):
-        print "Illegal character '%s'" % t.value[0]
+        self._error("illegal character '%s'" % t.value[0], t)
         t.lexer.skip(1)
     
-    def warning(self, t):
-        print "Illegal character '%s'" % t.value[0]
-        t.lexer.skip(1)
-
     # Build the lexer
     def build(self,**kwargs):
         self.lexer = lex.lex(module=self, **kwargs)

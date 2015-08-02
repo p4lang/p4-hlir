@@ -80,6 +80,10 @@ class HLIR():
         self.primitives.update(primitives_dict)
 
     def build(self, optimize=True, analyze=True, dump_preprocessed=False):
+        if len(self.source_files) == 0:
+            print "no source file to process"
+            return False
+
         # Preprocess all program text
         preprocessed_sources = []
         try:
