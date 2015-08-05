@@ -152,6 +152,27 @@
 	    }
 	}
     },
+    "subtract" :
+    {
+	"num_args" : 3,
+	"args" : ["field", "value1", "value2"],
+	"properties" : {
+	    "field" : {
+		"type" : ["field"],
+		"access" : "write"
+	    },
+	    "value1" : {
+		"type" : ["field", "int", "table_entry_data"],
+		"access" : "read",
+		"data_width" : "field"
+	    },
+	    "value2" : {
+		"type" : ["field", "int", "table_entry_data"],
+		"access" : "read",
+		"data_width" : "field"
+	    }
+	}
+    },
     "generate_digest" :
     {
         "num_args" : 2,
