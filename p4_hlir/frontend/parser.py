@@ -2002,19 +2002,19 @@ class P4Parser:
         p[0] = P4BinaryExpression(self.get_filename(), p.lineno(1),
                                   p[2], p[1], p[3])
 
-    def p_exp1(self, p):
+    def p_exp_1(self, p):
         """ exp : field_ref
         """
         p[0] = p[1]
 
-    def p_exp2(self, p):
+    def p_exp_2(self, p):
         """ exp : NOT exp
                 | MINUS exp %prec UMINUS
                 | PLUS exp %prec UMINUS
         """
         p[0] = P4UnaryExpression(self.get_filename(), p.lineno(1), p[1], p[2])
 
-    def p_exp3(self, p):
+    def p_exp_3(self, p):
         """ exp : exp AND exp
                 | exp OR exp
                 | exp XOR exp
@@ -2022,10 +2022,15 @@ class P4Parser:
         p[0] = P4BinaryExpression(self.get_filename(), p.lineno(1),
                                   p[2], p[1], p[3])
 
-    def p_exp4(self, p):
+    def p_exp_4(self, p):
         """ exp : const_value
         """
         p[0] = p[1]
+
+    def p_exp_5(self, p):
+        """ exp : LPAREN exp RPAREN
+        """
+        p[0] = p[2]
 
 
     # PARSER EXCEPTIONS
