@@ -98,19 +98,6 @@ class p4_field_list_calculation (p4_object):
         if not self.valid_obj:
             return
 
-        if self.algorithm not in {
-            "xor16",
-            "csum16",
-            "crc16",
-            "crc32",
-            "programmable_crc",
-            "user_defined"
-        }:
-            raise p4_compiler_msg (
-                "Reference to unsupported algorithm '"+self.algorithm+"'",
-                self.filename, self.lineno
-            )
-
         hlir.p4_field_list_calculations[self.name] = self
 
     @staticmethod
