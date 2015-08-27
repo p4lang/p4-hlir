@@ -52,11 +52,14 @@ def _find_parser_paths(hlir):
 
                 extracted_headers.add(hdr)
 
+        if len(extracted_headers & path_hdrs) != 0:
+            paths.append(extracted_headers | path_hdrs)
+            return
+
         for next_state in next_states:
             _find_paths(next_state, paths, current_path + [state], 
                         extracted_headers | path_hdrs, tag_stacks_index.copy())
 
-    
     paths = []
     start_state = hlir.p4_parse_states["start"]
     _find_paths(start_state, paths, [], set(), defaultdict(int))
