@@ -379,8 +379,7 @@ class rmt_table_graph():
     # Remove redundant edges with a transitive reduction algo in O(n^3), called
     # after resolving dependencies
     def transitive_reduction(self):
-        if not self._validated:
-            print "validating", self.validate()
+        assert( self.validate() )
 
         # for a given table (root_table), find alternate paths to its neighbors
         # (root_neighbors). We need max_type_ because we only eliminate an edge
@@ -416,14 +415,12 @@ class rmt_table_graph():
                     transitive_reduction_rec(table, dependency.to, neighbors,
                                              max_type_ = dependency.type_)
 
-        if not self._validated:
-            print "validating", self.validate()
+        assert( self.validate() )
             
 
     # called after building the graph to resolve dependencies
     def resolve_dependencies(self):
-        if not self._validated:
-            print "validating", self.validate()
+        assert( self.validate() )
 
         # We start by resolving the dependencies we have (CONTROL_FLOW) then we
         # recursively compute all possible dependencies in the graph (we will
@@ -454,8 +451,7 @@ class rmt_table_graph():
                 visited = set()
                 resolve_rec(table, next_table, visited, dependency.action_set)
 
-        if not self._validated:
-            print "validating", self.validate()
+        assert( self.validate() )
                 
 
     def generate_dot(self, name = "ingress", out = sys.stdout,
@@ -560,9 +556,8 @@ def rmt_build_table_graph(name, entry):
     dummy_table = table_graph.add_dummy_table(name)
     parse_p4_table_graph(table_graph, entry,
                             parent = dummy_table)
-    print "validating: ", table_graph.validate()
+    assert( table_graph.validate() )
     table_graph.resolve_dependencies()
-    print "validating: ", table_graph.validate()
     return table_graph
 
 # returns a rmt_table_graph object for ingress
