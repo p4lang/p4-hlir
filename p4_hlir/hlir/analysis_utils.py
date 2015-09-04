@@ -14,6 +14,30 @@
 
 import p4
 
+_include_valid = False
+
+valid_pseudo_fields = {}
+class p4_pseudo_field(object):
+    def __init__(self, instance):
+        self.instance = instance
+        self.name = instance.name + "._valid"
+
+    def __str__ (self):
+        return self.name
+
+def get_pseudo_valid_field(header):
+    if header not in valid_pseudo_fields:
+        valid_pseudo_fields[header] = p4_pseudo_field(header)
+    return valid_pseudo_fields[header]
+
+def get_header(header_or_field):
+    assert(isinstance(header_or_field, p4.p4_field) or\
+           isinstance(header_or_field, p4.p4_header_instance))
+    try:
+        return header_or_field.instance
+    except:
+        return header_or_field
+
 # places all fields of a header instance in field_set
 def get_all_subfields(field, field_set):
     if isinstance(field, p4.p4_field):
@@ -30,7 +54,6 @@ def get_all_subfields(field, field_set):
         return
     else:
         assert(False)
-
 
 # Retrieve all the fields touched by an action. Returns a tuple (fields_read,
 # fields_write, fields_all) of 3 sets. Use a cache (dictionary indexed by
@@ -55,8 +78,12 @@ def retrieve_from_one_action(action):
                          else flags["access"]
                 if access == p4.P4_WRITE:
                     get_all_subfields(arg, action_fields_write)
+                    if _include_valid and isinstance(arg, p4.p4_header_instance):
+                        action_fields_write.add(get_pseudo_valid_field(arg))
                 elif access == p4.P4_READ:
                     get_all_subfields(arg, action_fields_read)
+                    if _include_valid and isinstance(arg, p4.p4_header_instance):
+                        action_fields_read.add(get_pseudo_valid_field(arg))
                 else:
                     assert(False)
             elif isinstance(arg, int):
@@ -109,11 +136,12 @@ def _retrieve_match_fields_p4_conditional_node(self):
         if condition is None:
             return
         if isinstance(condition, p4.p4_headers.p4_field):
-            # TODO : not fine grain enough, the defined case should be
-            # treated differently
             get_all_subfields(condition, field_set)
             return
         if not isinstance(condition, p4.p4_expression):
+            return
+        if _include_valid and condition.op == "valid":
+            field_set.add(get_pseudo_valid_field(get_header(condition.right)))
             return
         condition_get_fields(condition.left, field_set)
         condition_get_fields(condition.right, field_set)
@@ -136,7 +164,10 @@ def _retrieve_match_fields_p4_table(self):
 
     result = set()
     for field in self.match_fields:
-        get_all_subfields(field[0], result)
+        if _include_valid and field[1] == p4.p4_match_type.P4_MATCH_VALID:
+            result.add(get_pseudo_valid_field(get_header(field[0])))
+        else:
+            get_all_subfields(field[0], result)
     if self.action_profile is not None:
         ap_r = retrieve_from_action_profile(self.action_profile)
         result.update(ap_r)
@@ -149,7 +180,7 @@ def _retrieve_action_fields_p4_conditional_node(self):
 
 p4.p4_conditional_node.retrieve_action_fields =_retrieve_action_fields_p4_conditional_node
 
-def _retrieve_action_fields_p4_table(self):
+def _retrieve_action_fields_p4_table(self, include_valid = False):
     fields_read = set()
     fields_write = set()
     for action in self.actions:
@@ -160,3 +191,7 @@ def _retrieve_action_fields_p4_table(self):
 
 p4.p4_table.retrieve_action_fields = _retrieve_action_fields_p4_table
 
+def reset_state(include_valid = False):
+    action_fields_cache.clear()
+    global _include_valid
+    _include_valid = include_valid
