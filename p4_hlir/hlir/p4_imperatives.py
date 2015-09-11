@@ -16,24 +16,14 @@ from p4_core import *
 from p4_expressions import *
 import p4_headers
 import p4_tables
+import p4_blackboxes
 import p4_stateful
-import p4_imperatives
 
 import logging
 
 
 #############################################################################
 ## Actions
-
-p4_action_keywords = p4_create_enum("p4_action_keywords", [
-    "P4_READ",
-    "P4_WRITE",
-    "P4_READ_WRITE",
-])
-P4_READ = p4_action_keywords.P4_READ
-P4_WRITE = p4_action_keywords.P4_WRITE
-P4_READ_WRITE = p4_action_keywords.P4_READ_WRITE
-
 
 class p4_table_entry_data(object):
     """
@@ -101,7 +91,26 @@ class p4_action (p4_object):
                     self.required_params -= 1
 
         for idx, call in enumerate(self.call_sequence):
-            name, arg_list = call
+            if len(call) == 2:
+                action_name, arg_list = call
+                called_action = hlir.p4_actions[action_name]
+            elif len(call) == 4 and call[0] == "method":
+                _, bbox_name, method_name, arg_list = call
+                bbox = hlir.p4_blackbox_instances.get(bbox_name, None)
+                if bbox:
+                    method = bbox.methods.get(method_name, None)
+                    if method_name:
+                        called_action = method
+                    else:
+                        raise p4_compiler_msg (
+                            "Reference to undefined method '%s.%s'" % (bbox_name, method_name),
+                            self.filename, self.lineno
+                        )
+                else:
+                    raise p4_compiler_msg (
+                        "Reference to undefined blackbox instance '%s'" % bbox_name,
+                        self.filename, self.lineno
+                    )
 
             def resolve_expression(arg):
                 if isinstance(arg, p4_expression):
@@ -117,7 +126,7 @@ class p4_action (p4_object):
                 arg_list[arg_idx] = resolve_expression(arg)
 
             self.call_sequence[idx] = (
-                hlir.p4_actions[name],
+                called_action,
                 list(arg_list)
             )
 
@@ -272,7 +281,6 @@ class p4_action (p4_object):
                         # TODO: error on already resolved
                         original_call = hlir.p4_actions[binding_action].call_sequence[binding_call][1]
                         original_call[binding_arg] = populated_arg
-
         else:
             # Compound action
             for idx, call in enumerate(self.call_sequence):

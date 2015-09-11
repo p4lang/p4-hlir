@@ -123,6 +123,79 @@ class P4Parser:
         """
         self.current_pragmas.add(p[2])
 
+    # TYPE SPECIFICATION
+    def p_type_spec(self, p):
+        """ type_spec : HEADER ID
+                      | METADATA ID
+                      | BLACKBOX ID
+                      | FIELD_LIST
+                      | PARSER
+                      | PARSER_EXCEPTION
+                      | ACTION
+                      | TABLE
+                      | CONTROL
+                      | data_type_spec
+        """
+        if isinstance(p[1], P4TypeSpec):
+            p[0] = p[1]
+        else:
+            type_name = p[1]
+            qualifiers = {}
+            if type_name == "header":
+                qualifiers["subtype"] = p[2]
+            elif type_name == "metadata":
+                qualifiers["subtype"] = p[2]
+            elif type_name == "blackbox":
+                qualifiers["subtype"] = p[2]
+            p[0] = P4TypeSpec(self.get_filename(), p.lineno(1), type_name, qualifiers)
+
+    def p_data_type_spec(self, p):
+        """ data_type_spec : INT
+                           | VOID
+                           | BIT
+                           | BIT LT const_value GT
+                           | BIT LT const_value COMMA identifier_list GT
+                           | VARBIT LT const_value GT
+        """
+        type_name = p[1]
+        qualifiers = {}
+        if type_name == "bit":
+            if len(p) > 2:
+                qualifiers["width"] = p[3]
+                if len(p) > 3:
+                    for elem in p[5]:
+                        qualifiers[elem] = True
+            else:
+                qualifiers["width"] = 1
+        elif type_name == "varbit":
+            qualifiers["width"] = p[3]
+        p[0] = P4TypeSpec(self.get_filename(), p.lineno(1), type_name, qualifiers)
+
+    # PARAMETER LISTS
+    def p_parameter_list_1(self, p):
+        """ parameter_list : parameter_list COMMA parameter
+        """
+        p[0] = p[1] + [p[3]]
+
+    def p_parameter_list_2(self, p):
+        """ parameter_list : parameter
+        """
+        p[0] = [p[1]]
+
+    def p_parameter(self, p):
+        """ parameter : parameter_qualifier type_spec ID 
+        """
+        p[0] = (p[3],p[2],p[1])
+
+    def p_parameter_qualifier(self, p):
+        """ parameter_qualifier : IN
+                                | OUT
+                                | INOUT
+                                | OPTIONAL IN
+                                | OPTIONAL OUT
+                                | OPTIONAL INOUT
+        """
+        p[0] = set(p[1:])
 
     # HEADER TYPE
 
@@ -854,6 +927,7 @@ class P4Parser:
     def p_extract_or_set_statement(self, p):
         """ extract_or_set_statement : extract_statement
                                      | set_statement
+                                     | blackbox_method_call
         """
         p[0] = p[1]
 
@@ -1472,6 +1546,11 @@ class P4Parser:
             p[3]
         )
 
+    def p_action_satement_3(self, p):
+        """ action_statement : blackbox_method_call SEMI
+        """
+        p[0] = p[1]
+
     def p_action_satement_error_1(self, p):
         """ action_statement : ID error SEMI
         """
@@ -1862,6 +1941,11 @@ class P4Parser:
         self.print_error(p.lineno(1),
                          "Invalid apply_table statement")
 
+    def p_control_statement_6(self, p):
+        """ control_statement : blackbox_method_call SEMI
+        """
+        p[0] = p[1]
+
     def p_apply_case_list_1(self, p):
         """ apply_case_list : apply_case
         """
@@ -2200,3 +2284,180 @@ class P4Parser:
                 p.lineno,
                 "Syntax error while parsing at token %s (%s)" % (p.value, p.type)
             )
+
+    # BLACKBOX TYPE DECLARATION
+
+    def p_p4_declaration_18(self, p):
+        """ p4_declaration : blackbox_type_declaration
+        """
+        p[0] = p[1]
+
+    def p_blackbox_type_declaration_1(self, p):
+        """ blackbox_type_declaration : BLACKBOX_TYPE blackbox_type_name SEMI
+                                      | BLACKBOX_TYPE blackbox_type_name LBRACE RBRACE
+        """
+        p[0] = P4BlackboxType(self.get_filename(), p.lineno(2), p[2])
+
+    def p_blackbox_type_declaration_2(self, p):
+        """ blackbox_type_declaration : BLACKBOX_TYPE blackbox_type_name LBRACE \
+                                            blackbox_member_list \
+                                        RBRACE
+        """
+        p[0] = P4BlackboxType(self.get_filename(), p.lineno(2), p[2], p[4])
+
+    def p_blackbox_type_name(self, p):
+        """ blackbox_type_name : ID
+                               | COUNTER
+                               | METER
+                               | REGISTER
+                               | ACTION_PROFILE
+        """
+        # TODO: this production is here to allow blackbox definitions of
+        #       currently first-class P4 objects. once these first-class
+        #       versions of counter/meter/etc. are removed from the grammar,
+        #       all occurences of this producion can just be replaced with
+        #       ID
+        p[0] = p[1]
+
+    def p_blackbox_attribute_name(self, p):
+        """ blackbox_attribute_name : ID
+                                    | DIRECT
+                                    | STATIC
+                                    | INSTANCE_COUNT
+                                    | MIN_WIDTH
+                                    | SATURATING
+                                    | WIDTH
+                                    | TYPE
+
+                                    | INPUT
+                                    | ALGORITHM
+                                    | OUTPUT_WIDTH
+
+                                    | SIZE
+                                    | DYNAMIC_ACTION_SELECTION
+        """
+        # TODO: this production is here to allow blackbox definitions of
+        #       currently first-class P4 objects. once these first-class
+        #       versions of counter/meter/etc. are removed from the grammar,
+        #       all occurences of this producion can just be replaced with
+        #       ID
+        p[0] = p[1]
+
+    def p_blackbox_member_list(self, p):
+        """ blackbox_member_list : blackbox_member_list blackbox_member
+                                 | blackbox_member
+        """
+        if len(p) > 2:
+            p[0] = p[1] + [p[2]]
+        else:
+            p[0] = [p[1]]
+
+    def p_blackbox_member_1(self, p):
+        """ blackbox_member : ATTRIBUTE blackbox_attribute_name LBRACE \
+                                blackbox_attribute_property_list \
+                              RBRACE
+
+        """
+        p[0] = ("attribute",p[2],p[4])
+
+    def p_blackbox_member_2(self, p):
+        """ blackbox_member : METHOD ID LPAREN parameter_list RPAREN SEMI
+                            | METHOD ID LPAREN RPAREN SEMI
+        """
+        if len(p) <=6 :
+            p[0] = ("method",p[2],[])
+        else:
+            p[0] = ("method",p[2],p[4])
+
+    def p_blackbox_attribute_property_list(self, p):
+        """ blackbox_attribute_property_list : blackbox_attribute_property_list blackbox_attribute_property
+                                             | blackbox_attribute_property
+        """
+        if len(p) > 2:
+            p[0] = p[1] + [p[2]]
+        else:
+            p[0] = [p[1]]
+
+    def p_blackbox_attribute_property_1(self, p):
+        """ blackbox_attribute_property : OPTIONAL SEMI
+        """
+        p[0] = ("optional",)
+
+    def p_blackbox_attribute_property_2(self, p):
+        """ blackbox_attribute_property : TYPE COLON type_spec SEMI
+                                        | TYPE COLON STRING SEMI
+                                        | TYPE COLON EXPRESSION SEMI
+                                        | TYPE COLON BLOCK SEMI
+        """
+        if isinstance(p[3], P4TypeSpec):
+            p[0] = ("type",p[3])
+        else:
+            p[0] = ("type",P4TypeSpec(self.get_filename(), p.lineno(1), p[3], {}))
+
+    def p_blackbox_attribute_property_3(self, p):
+        """ blackbox_attribute_property : EXPRESSION_LOCAL_VARIABLES \
+                                          LBRACE identifier_list RBRACE
+        """
+        p[0] = ("locals",p[3])
+
+    def p_identifier_list(self, p):
+        """ identifier_list : identifier_list COMMA ID
+                            | ID
+        """
+        if len(p) > 2:
+            p[0] = p[1] + [p[3]]
+        else:
+            p[0] = [p[1]]
+
+    # BLACKBOX INSTANCE DECLARATION
+
+    def p_p4_declaration_19(self, p):
+        """ p4_declaration : blackbox_instance_declaration
+        """
+        p[0] = p[1]
+
+    def p_blackbox_instance_declaration_1(self, p):
+        """ blackbox_instance_declaration : BLACKBOX blackbox_type_name ID SEMI
+        """
+        p[0] = P4BlackboxInstance(self.get_filename(), p.lineno(2), p[3], p[2])
+
+    def p_blackbox_instance_declaration_2(self, p):
+        """ blackbox_instance_declaration : BLACKBOX blackbox_type_name ID LBRACE \
+                                                blackbox_instance_attribute_list \
+                                            RBRACE
+        """
+        p[0] = P4BlackboxInstance(self.get_filename(), p.lineno(2), p[3], p[2], p[5])
+
+    def p_blackbox_instance_attribute_list (self, p):
+        """ blackbox_instance_attribute_list : blackbox_instance_attribute_list blackbox_instance_attribute
+                                             | blackbox_instance_attribute
+        """
+        if len(p) > 2:
+            p[0] = p[1] + [p[2]]
+        else:
+            p[0] = [p[1]]
+
+    def p_blackbox_instance_attribute_2 (self, p):
+        """ blackbox_instance_attribute : SINGLE_LINE_ATTR
+        """
+        p[0] = p[1]
+
+    def p_blackbox_instance_attribute_3 (self, p):
+        """ blackbox_instance_attribute : MULTI_LINE_ATTR
+        """
+        p[0] = p[1]
+
+    def p_blackbox_instance_attribute_4 (self, p):
+        """ blackbox_instance_attribute : ID
+        """
+        p[0] = (p[1],None)
+
+    def p_blackbox_method_call_1(self, p):
+        """ blackbox_method_call : ID PERIOD ID LPAREN arg_list RPAREN
+        """
+        p[0] = P4BlackboxMethodCall(self.get_filename(), p.lineno(1), p[1], p[3], p[5])
+
+    def p_blackbox_method_call_2(self, p):
+        """ blackbox_method_call : ID PERIOD ID LPAREN RPAREN
+        """
+        p[0] = P4BlackboxMethodCall(self.get_filename(), p.lineno(1), p[1], p[3], [])

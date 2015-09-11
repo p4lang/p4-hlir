@@ -37,6 +37,8 @@ class HLIR():
 
         self.p4_objects = []
 
+        self.p4_blackbox_types = OrderedDict()
+        self.p4_blackbox_instances = OrderedDict()
         self.p4_actions = OrderedDict()
         self.p4_control_flows = OrderedDict()
         self.p4_headers = OrderedDict()
@@ -162,6 +164,119 @@ class HLIR():
 
     def _check_source_path(self, source):
         return os.path.isfile(source)
+
+    def _type_spec_to_hlir(self, type_spec):
+        obj_type = type_spec.name
+        if obj_type == "string":
+            return str
+        elif obj_type == "block":
+            return str
+        elif obj_type == "int":
+            return int
+        elif obj_type == "expression":
+            # TODO
+            return value
+        elif obj_type == "bit":
+            return p4.p4_field
+        elif obj_type == "varbit":
+            # TODO
+            return p4.p4_field 
+        elif obj_type == "field_list":
+            return p4.p4_field_list
+        elif obj_type == "parser":
+            return p4.p4_parser
+        elif obj_type == "parser_exception":
+            return p4.p4_parser_exception
+        elif obj_type == "action":
+            return p4.p4_action
+        elif obj_type == "table":
+            return p4.p4_table
+        elif obj_type == "control":
+            return p4.p4_control_flow
+        elif obj_type == "header" or obj_type == "metadata":
+            return p4.p4_header_instance
+        elif obj_type == "blackbox":
+            return p4.p4_blackbox_instance
+
+        raise p4_compiler_msg (
+            "Unexpected type '%s'" % obj_type
+        )
+
+    def _resolve_object(self, type_spec, value):
+        obj_type = type_spec.name
+        if obj_type == "string":
+            return value
+        elif obj_type == "block":
+            return value
+        elif obj_type == "int":
+            try:
+                return p4.p4_sized_integer.from_string(value)
+            except:
+                raise p4.p4_compiler_msg(
+                    "Invalid numeric literal '%s'" % value.strip()
+                )
+        elif obj_type == "expression":
+            # TODO
+            return value
+        else:
+            value = value.strip();
+
+            try:
+                if obj_type == "field_list":
+                    return self.p4_field_lists[value]
+                elif obj_type == "parser":
+                    return self.p4_parsers[value]
+                elif obj_type == "parser_exception":
+                    return self.p4_parser_exceptions[value]
+                elif obj_type == "action":
+                    return self.p4_actions[value]
+                elif obj_type == "table":
+                    return self.p4_tables[value]
+                elif obj_type == "control":
+                    return self.p4_control_flows[value]
+            except KeyError:
+                raise p4.p4_compiler_msg(
+                    "Reference to undefined %s '%s'" % (obj_type.replace("_"," "), value)
+                )
+
+            subtype = type_spec.qualifiers["subtype"]
+            try:                    
+                if obj_type == "header" or obj_type == "metadata":
+                    subtype = self.p4_headers[subtype]
+                elif obj_type == "blackbox":
+                    subtype = self.p4_blackbox_types[subtype]
+            except KeyError:
+                raise p4.p4_compiler_msg(
+                    "Reference to undefined type '%s'" % (subtype)
+                )
+
+            try:
+                if obj_type == "header" or obj_type == "metadata":
+                    obj = self.p4_header_instances[value]
+                    if obj.header_type != subtype:
+                        raise TypeError
+                    if obj.metadata and obj_type != "metadata":
+                        raise TypeError
+                    if not obj.metadata and obj_type == "metadata":
+                        raise TypeError
+                    return obj
+                elif obj_type == "blackbox":
+                    obj = self.p4_blackbox_instances[value]
+                    if obj.blackbox_type != subtype:
+                        raise TypeError
+                    return obj
+            except KeyError:
+                raise p4.p4_compiler_msg(
+                    "Reference to undefined %s '%s'" % (obj_type.replace("_"," "), value)
+                )
+            except TypeError:
+                p4_compiler_msg(
+                    "Object '%s' is not of type '%s'" % (value, obj_type + " " + subtype.name)
+                )
+
+        raise p4_compiler_msg (
+            "Unexpected type '%s'" % obj_type
+        )
 
 def HLIR_from_txt (program_str, **kwargs):
     h = HLIR()

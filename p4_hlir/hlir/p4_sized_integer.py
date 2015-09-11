@@ -36,6 +36,17 @@ class p4_sized_integer(int):
 
         return obj
 
+    @staticmethod
+    def from_string(strval):
+        strval = strval.replace("_", "").strip()
+        if ":" in strval:
+            width, val = strval.split(":",1)
+        else:
+            width = 0
+            val = strval
+        val = int(val,0)
+        return p4_sized_integer(val, width)
+
 def test():
     i = p4_sized_integer(100)
     print i, i.width

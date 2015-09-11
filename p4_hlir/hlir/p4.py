@@ -18,6 +18,7 @@ import inspect
 import logging
 
 from p4_core import *
+from p4_blackboxes import *
 from p4_headers import *
 from p4_parser import *
 from p4_imperatives import *
@@ -100,6 +101,8 @@ def p4_validate(hlir):
     # object type A can reference objects of type B, B should precede A in the
     # list
     p4_types = [
+        hlir.p4_blackbox_types,
+        hlir.p4_blackbox_instances,
         hlir.p4_headers,
         hlir.p4_header_instances,
         hlir.p4_field_lists,

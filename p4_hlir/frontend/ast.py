@@ -13,26 +13,39 @@
 # limitations under the License.
 
 class Types:
-    (header_type,
-     header_instance,
-     header_instance_regular,
-     header_instance_metadata,
-     field,
-     field_list,
-     field_list_calculation,
-     int_, bool_, string_,
-     value_set,
-     parser_function,
-     counter,
-     meter,
-     register,
-     primitive_action,
-     action_function,
-     table,
-     action_profile,
-     action_selector,
-     control_function,
-     parser_exception) = range(22)
+
+    type_count=0
+    while True:
+        try: (
+            # TYPE LIST:
+            header_type,
+            header_instance,
+            header_instance_regular,
+            header_instance_metadata,
+            field,
+            field_list,
+            field_list_calculation,
+            int_, bool_, string_,
+            value_set,
+            parser_function,
+            counter,
+            meter,
+            register,
+            primitive_action,
+            action_function,
+            table,
+            action_profile,
+            action_selector,
+            control_function,
+            parser_exception,
+            blackbox_type,
+            blackbox_instance,
+            type_spec,
+        ) = range(type_count)
+        except:
+            type_count += 1
+            continue
+        break
 
     types_to_names = {
         header_type : "header type",
@@ -55,6 +68,9 @@ class Types:
         control_function : "control function",
         int_ : "integer value",
         parser_exception : "parser_exception",
+        blackbox_type : "blackbox type",
+        blackbox_instance : "blackbox instance",
+        type_spec : "type specification"
     }
 
     @staticmethod
@@ -368,6 +384,30 @@ class P4ActionCall(P4TreeNode):
         self.action = name
         self.arg_list = arg_list
 
+class P4BlackboxType(P4NamedObject):
+    def __init__(self, filename, lineno, name, members = []):
+        super(P4BlackboxType, self).__init__(filename, lineno, name)
+        self.members = members
+
+    def get_type_(self):
+        return Types.blackbox_type
+
+class P4BlackboxInstance(P4NamedObject):
+    def __init__(self, filename, lineno, name, blackbox_type, attributes = []):
+        super(P4BlackboxInstance, self).__init__(filename, lineno, name)
+        self.attributes = attributes
+        self.blackbox_type = blackbox_type
+
+    def get_type_(self):
+        return Types.blackbox_instance
+
+class P4BlackboxMethodCall(P4TreeNode):
+    def __init__(self, filename, lineno, blackbox_instance, method, arg_list = []):
+        super(P4BlackboxMethodCall, self).__init__(filename, lineno)
+        self.blackbox_instance = blackbox_instance
+        self.method = method
+        self.arg_list = arg_list
+
 class P4Table(P4NamedObject):
     def __init__(self, filename, lineno, name, action_spec, action_profile,
                  reads = [], min_size = None, max_size = None, size = None,
@@ -545,3 +585,11 @@ class P4Bool(P4Expression):
     def __init__(self, filename, lineno, b):
         super(P4Bool, self).__init__(filename, lineno)
         self.b = b
+
+class P4TypeSpec(P4NamedObject):
+    def __init__(self, filename, lineno, name, qualifiers):
+        super(P4TypeSpec, self).__init__(filename, lineno, name)
+        self.qualifiers = qualifiers
+
+    def get_type_(self):
+        return Types.type_spec

@@ -563,7 +563,8 @@ def optimize_table_graph(hlir):
                         change = True
 
     for _, p4_node in hlir.p4_nodes.items():
-        del p4_node._modified_hdrs
+        if hasattr(p4_node, "_modified_hdrs"):
+            del p4_node._modified_hdrs
 
     _purge_unused_nodes(hlir)
 

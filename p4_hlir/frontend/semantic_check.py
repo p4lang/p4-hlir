@@ -71,6 +71,8 @@ class P4SemanticChecker:
 
     def _bind(self):
         P4Program.check = check_P4Program
+        P4BlackboxType.check = check_P4BlackboxType
+        P4BlackboxInstance.check = check_P4BlackboxInstance
         P4HeaderType.check = check_P4HeaderType
         P4HeaderInstance.check = check_P4HeaderInstance
         P4HeaderInstanceRegular.check = check_P4HeaderInstanceRegular
@@ -116,6 +118,8 @@ class P4SemanticChecker:
 
         P4ActionCall.check = check_P4ActionCall
 
+        P4BlackboxMethodCall.check = check_P4BlackboxMethodCall
+
         P4TableFieldMatch.check = check_P4TableFieldMatch
 
         P4ControlFunctionStatement.check = check_P4ControlFunctionStatement
@@ -140,6 +144,8 @@ class P4SemanticChecker:
         P4ActionFunction.detect_recursion = detect_recursion_P4ActionFunction
         P4ActionCall.detect_recursion = detect_recursion_P4ActionCall
 
+        P4BlackboxMethodCall.detect_recursion = detect_recursion_P4BlackboxMethodCall
+
         P4FieldList.detect_recursion_field_list = detect_recursion_field_list_P4FieldList
         P4Expression.detect_recursion_field_list = detect_recursion_field_list_P4Expression
         P4RefExpression.detect_recursion_field_list = detect_recursion_field_list_P4RefExpression
@@ -154,9 +160,8 @@ class P4SemanticChecker:
         P4HeaderRefExpression.check_action_typing = check_action_typing_P4HeaderRefExpression
         P4RefExpression.check_action_typing = check_action_typing_P4RefExpression
         P4Integer.check_action_typing = check_action_typing_P4Integer
-        P4UnaryExpression.check_action_typing = check_action_typing_P4UnaryExpression
-        P4BinaryExpression.check_action_typing = check_action_typing_P4BinaryExpression
-
+        P4UnaryExpression.check_action_typing = check_action_typing_P4Integer
+        P4BlackboxMethodCall.check_action_typing = check_action_typing_P4BlackboxMethodCall
 
         P4TreeNode.find_unused_args = find_unused_args_P4TreeNode
         P4Program.find_unused_args = find_unused_args_P4Program
@@ -340,6 +345,9 @@ def detect_recursion_P4ActionCall(self, objects, action):
     if not action_called: return False
     return action_called.detect_recursion(objects, action)
 
+def detect_recursion_P4BlackboxMethodCall(self, objects, action):
+    return False
+
 def check_action_typing_P4Program(self, symbols, objects,
                                   trace = None):
     for obj in self.objects:
@@ -420,6 +428,12 @@ def check_action_typing_P4ActionCall(self, symbols, objects,
         action.check_action_typing(symbols, objects, trace = trace)
         symbols.exitscope()
     symbols.pushscope(parent_scope)
+
+
+def check_action_typing_P4BlackboxMethodCall(self, symbols, objects,
+                                             trace = None):
+    # Done in HLIR pass
+    pass
 
 def check_action_typing_P4FieldRefExpression(self, symbols, objects,
                                              trace = None):
@@ -666,6 +680,14 @@ def check_P4Program(self, symbols, header_fields, objects, types = None):
 
     if self.get_errors_cnt() == 0:
         self.remove_unused(objects)
+
+def check_P4BlackboxType(self, symbols, header_fields, objects, types = None):
+    # TODO
+    pass
+
+def check_P4BlackboxInstance(self, symbols, header_fields, objects, types = None):
+    # TODO
+    pass
 
 def check_P4HeaderType(self, symbols, header_fields, objects, types = None):
     visited = set()
@@ -924,6 +946,9 @@ def check_P4ActionCall(self, symbols, header_fields, objects, types = None):
                 Types.counter, Types.meter, Types.register
             }
         )
+
+def check_P4BlackboxMethodCall(self, symbols, header_fields, objects, types = None):
+    pass
 
 def check_P4Table(self, symbols, header_fields, objects, types = None):
     if self.size is None and self.min_size is not None and self.max_size is not None:

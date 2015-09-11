@@ -40,6 +40,11 @@ from p4_hlir.hlir.p4_tables import (
     p4_table, p4_match_type,
     p4_action_profile, p4_action_selector
 )
+from p4_hlir.hlir.p4_blackboxes import (
+    p4_blackbox_type,
+    p4_blackbox_instance
+)
+
 from p4_hlir.hlir.p4_expressions import p4_expression
 from p4_hlir.hlir.p4_sized_integer import p4_sized_integer
 
@@ -94,6 +99,9 @@ class P4HlirDumper:
         P4ActionSelector.dump_to_p4 = dump_to_p4_P4ActionSelector
         P4ControlFunction.dump_to_p4 = dump_to_p4_P4ControlFunction
 
+        P4BlackboxType.dump_to_p4 = dump_to_p4_P4BlackboxType
+        P4BlackboxInstance.dump_to_p4 = dump_to_p4_P4BlackboxInstance
+
         P4RefExpression.dump_to_p4 = dump_to_p4_P4RefExpression
         P4FieldRefExpression.dump_to_p4 = dump_to_p4_P4FieldRefExpression
         P4HeaderRefExpression.dump_to_p4 = dump_to_p4_P4HeaderRefExpression
@@ -118,6 +126,8 @@ class P4HlirDumper:
         P4CurrentExpression.dump_to_p4 = dump_to_p4_P4CurrentExpression
 
         P4ActionCall.dump_to_p4 = dump_to_p4_P4ActionCall
+
+        P4BlackboxMethodCall.dump_to_p4 = dump_to_p4_P4BlackboxMethodCall
 
         P4TableFieldMatch.dump_to_p4 = dump_to_p4_P4TableFieldMatch
 
@@ -430,6 +440,10 @@ def dump_to_p4_P4ActionCall(self, hlir):
     arg_list = [arg.dump_to_p4(hlir) for arg in self.arg_list]
     return (self.action.dump_to_p4(hlir), arg_list)
 
+def dump_to_p4_P4BlackboxMethodCall(self, hlir):
+    arg_list = [arg.dump_to_p4(hlir) for arg in self.arg_list]
+    return ("method", self.blackbox_instance, self.method, arg_list)
+
 def dump_to_p4_P4Table(self, hlir):
     match_fields = [read.dump_to_p4(hlir) for read in self.reads]
     if self.action_spec:
@@ -700,7 +714,6 @@ def dump_to_p4_P4ParserExceptionDrop(self, hlir):
 def dump_to_p4_P4ParserExceptionReturn(self, hlir):
     return self.control_function.dump_to_p4(hlir)
 
-
 def eval_P4BinaryExpression(self, hlir):
     left = self.left.dump_to_p4(hlir)
     right = self.right.dump_to_p4(hlir)
@@ -715,3 +728,35 @@ def eval_P4UnaryExpression(self, hlir):
 
 def eval_P4Integer(self, hlir):
     return self.i
+
+def dump_to_p4_P4BlackboxType(self, hlir):
+    attributes = []
+    methods = []
+    for member in self.members:
+        if member[0] == "attribute":
+            attributes.append(member[1:])
+        elif member[0] == "method":
+            methods.append(member[1:])
+        else:
+            assert False, "Unrecognized blackbox member type %s" % str(member[0])
+
+    g_bb_type = p4_blackbox_type(
+        hlir,
+        self.name,
+        filename = self.filename,
+        lineno = self.lineno,
+        attributes = attributes,
+        methods = methods
+    )
+    g_bb_type._pragmas = self._pragmas.copy()
+
+def dump_to_p4_P4BlackboxInstance(self, hlir):
+    g_bb_inst = p4_blackbox_instance(
+        hlir,
+        self.name,
+        filename = self.filename,
+        lineno = self.lineno,
+        blackbox_type = self.blackbox_type,
+        attributes = self.attributes
+    )
+    g_bb_inst._pragmas = self._pragmas.copy()
