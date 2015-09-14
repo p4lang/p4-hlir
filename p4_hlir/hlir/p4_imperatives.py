@@ -150,7 +150,7 @@ class p4_action (p4_object):
                                 elif type(inferring_arg) is p4_stateful.p4_register:
                                     data_width = inferring_arg.width
                                 else:
-                                    raise p4_compiler_msg("Could not infer width from primitive argument in action '"+call[2].name+"'")
+                                    raise p4_compiler_msg("Could not infer width from primitive action '%s' argument in action '%s'" % (call[0].name, call[2][0][0].name))
                         
                         if self.signature_widths[arg.idx] == None:
                             self.signature_widths[arg.idx] = data_width
