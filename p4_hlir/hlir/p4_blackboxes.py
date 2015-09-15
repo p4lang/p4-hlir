@@ -15,7 +15,7 @@
 from p4_core import *
 from p4_sized_integer import p4_sized_integer
 from p4_headers import p4_field
-from p4_imperatives import p4_table_entry_data, p4_action
+from p4_imperatives import p4_table_entry_data, p4_action, p4_signature_ref
 
 from p4_hlir.util.OrderedSet import OrderedSet
 from collections import OrderedDict, defaultdict
@@ -50,6 +50,31 @@ class p4_method (p4_action):
             hlir.p4_actions[self.parent.name+"."+self.name] = self
 
         self._pragmas = OrderedSet()
+
+    def validate_arguments(self, hlir, args):
+        if self.required_params <= len(args) <= len(self.signature):
+            for arg_idx, arg in enumerate(args):
+                param_name = self.signature[arg_idx]
+                param_types = self.signature_flags[self.signature[arg_idx]]["type"]
+                if type(arg) not in param_types:
+                    expected_type=", ".join(t.__name__ for t in param_types)
+                    if len(param_types) == 1:
+                        expected_type = "type "+expected_type
+                    else:
+                        expected_type = "types {"+expected_type+"}"
+                    raise p4_compiler_msg(
+                        "Incorrect type for method '%s' parameter '%s'  (got %s, expected %s)" % (
+                            str(self), param_name, type(arg).__name__, expected_type
+                        )
+                    )
+        else:
+            if self.required_params == len(self.signature):
+                req_param_str = str(self.required_params)
+            else:
+                req_param_str = "between "+str(self.required_params)+" and "+str(len(self.signature))
+            raise p4_compiler_msg(
+                "Incorrect number of arguments passed to '"+str(self)+"' (got %i, expected %s)" % (len(call_args), req_param_str),
+            )
 
     def build(self, hlir):
         self.required_params = len(self.params)

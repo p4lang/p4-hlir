@@ -182,6 +182,12 @@ class p4_parse_state (p4_object):
                     if method_obj:
                         # TODO: process call_args somewhere
                         call_args = call[3]
+                        try:
+                            method_obj.validate_arguments(hlir, call_args)
+                        except p4_compiler_msg as p:
+                            p.filename = self.filename
+                            p.lineno = self.lineno
+                            raise
                         self.call_sequence[idx] = (parse_call.method, method_obj, call_args)
                     else:
                         raise p4_compiler_msg(

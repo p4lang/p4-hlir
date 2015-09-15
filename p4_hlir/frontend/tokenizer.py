@@ -292,7 +292,7 @@ class P4Lexer:
         r'\n+'
         t.lexer.lineno += t.value.count("\n")
 
-    single_line_attr = r"(?P<id>"+identifier+r")\s*:(?P<val>[^;\n]+);*"
+    single_line_attr = r"(?P<id>"+identifier+r")\s*:(?P<val>[^;\n]+);"
     @TOKEN(single_line_attr)
     def t_bbox_SINGLE_LINE_ATTR(self, t):
         t.value = t.lexer.lexmatch.group("id","val")
@@ -314,6 +314,7 @@ class P4Lexer:
     multi_line_attr = r"(?P<id>"+identifier+r")\s*\{(?P<val>[^\}]*)}"
     @TOKEN(multi_line_attr)
     def t_bbox_MULTI_LINE_ATTR(self, t):
+        t.lexer.lineno += t.value.count("\n")
         t.value = t.lexer.lexmatch.group("id","val")
         return t
 
