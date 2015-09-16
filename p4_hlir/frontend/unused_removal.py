@@ -321,9 +321,9 @@ def remove_unused_P4Program(self, objects):
     while removed:
         removed = False
         self.mark_used(objects)
+        new_objects = []
         for idx, obj in enumerate(self.objects):
             if not obj.is_marked() and "dont_trim" not in obj._pragmas:
-                self.objects.pop(idx)
                 type_name = Types.get_name(obj.get_type_())
                 msg = "%s '%s' is not reachable and will be removed"\
                       % (type_name, obj.name) # has to be a P4NamedObject at that point
@@ -331,6 +331,8 @@ def remove_unused_P4Program(self, objects):
                 removed = True
             else:
                 obj.unmark()
+                new_objects.append(obj)
+        self.objects = new_objects
 
 P4Program.remove_unused = remove_unused_P4Program
 
