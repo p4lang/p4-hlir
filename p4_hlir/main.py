@@ -57,6 +57,7 @@ class HLIR():
         self.p4_action_profiles = OrderedDict()
         self.p4_action_selectors = OrderedDict()
         self.p4_conditional_nodes = OrderedDict()
+        self.p4_action_nodes = OrderedDict()
 
         self.calculated_fields = []
 

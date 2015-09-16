@@ -180,7 +180,6 @@ class p4_parse_state (p4_object):
                 if bbox:
                     method_obj = bbox.methods.get(call[2], None)
                     if method_obj:
-                        # TODO: process call_args somewhere
                         call_args = call[3]
                         try:
                             method_obj.validate_arguments(hlir, call_args)

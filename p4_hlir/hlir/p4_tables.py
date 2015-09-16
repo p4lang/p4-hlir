@@ -14,6 +14,7 @@
 
 from p4_core import *
 import p4_imperatives
+import p4_blackboxes
 import p4_headers
 import exclusive_conditions
 
@@ -132,6 +133,30 @@ class p4_table (p4_node):
         self.build_fields(hlir)
         self.build_actions(hlir)
 
+class p4_action_node (p4_table):
+    """
+    TODO: docstring
+    """
+    def __init__ (self, hlir, action, args):
+        name = "_action_"+str(len(hlir.p4_action_nodes))
+        p4_table.__init__(self, hlir, name, 
+            match_fields=[],
+            actions=[action],
+            action_profile=None,
+            min_size=1,
+            max_size=1
+        )
+
+        if not self.valid_obj:
+            return
+
+        self.args = args
+
+        hlir.p4_action_nodes[self.name] = self
+
+    def build(self, hlir):
+        pass
+
 class p4_action_profile (p4_object):
     """
     TODO
@@ -215,7 +240,11 @@ def _p4_control_flow_to_table_graph(hlir,
             next_parents = [call_entry]
             call_entry.control_flow_parent = parent_fn.name
             call_entry.conditional_barrier = conditional_barrier
-
+        elif type(call) is tuple and type(call[0]) is p4_blackboxes.p4_method:
+            call_entry = p4_action_node (hlir, call[0], call[1])
+            next_parents = [call_entry]
+            call_entry.control_flow_parent = parent_fn.name
+            call_entry.conditional_barrier = conditional_barrier
         elif type(call) is tuple and len(call) == 3:
             paths = {True: None, False: None}
             next_parents = []
@@ -337,6 +366,8 @@ def _p4_control_flow_to_table_graph(hlir,
                 conditional_barrier,
                 visited
             )
+        else:
+            assert False, "Unexpected call type '%s'" % type(call).__name__
 
         for parent in parents:
             for label, edge in parent.next_.items():

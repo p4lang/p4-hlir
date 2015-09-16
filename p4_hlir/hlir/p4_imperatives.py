@@ -384,6 +384,30 @@ class p4_control_flow (p4_object):
                     build_calls(hlir, call[2])
                     build_calls(hlir, call[3])
                     calls[idx] = (call[1], call[2], call[3])
+                elif call[0] == "method":
+                    bbox = hlir.p4_blackbox_instances.get(call[1], None)
+                    if bbox:
+                        method_obj = bbox.methods.get(call[2], None)
+                        if method_obj:
+                            call_args = call[3]
+                            try:
+                                method_obj.validate_arguments(hlir, call_args)
+                            except p4_compiler_msg as p:
+                                p.filename = self.filename
+                                p.lineno = self.lineno
+                                raise
+                            calls[idx] = (method_obj, call_args)
+                        else:
+                            raise p4_compiler_msg(
+                                "Reference to undefined method '%s.%s'" % (bbox.name, call[2]),
+                                self.filename, self.lineno
+                            )
+                    else:
+                        raise p4_compiler_msg(
+                            "Reference to undefined blackbox '%s'" % call[1],
+                            self.filename, self.lineno
+                        )
+
                 else:
                     assert False, "Invalid control function format: '"+str(call)+"'"
         build_calls (hlir, self.call_sequence)

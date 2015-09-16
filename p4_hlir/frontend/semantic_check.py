@@ -184,6 +184,7 @@ class P4SemanticChecker:
 
         P4Program.check_apply_action_cases = check_apply_action_cases_P4Program
         P4ControlFunction.check_apply_action_cases = check_apply_action_cases_P4ControlFunction
+        P4BlackboxMethodCall.check_apply_action_cases = check_apply_action_cases_P4BlackboxMethodCall
         P4ControlFunctionStatement.check_apply_action_cases = check_apply_action_cases_P4ControlFunctionStatement
         P4ControlFunctionIfElse.check_apply_action_cases = check_apply_action_cases_P4ControlFunctionIfElse
         P4ControlFunctionApplyAndSelect.check_apply_action_cases = check_apply_action_cases_P4ControlFunctionApplyAndSelect
@@ -553,6 +554,10 @@ def check_apply_action_cases_P4Program(self, table_actions, apply_table = None):
 def check_apply_action_cases_P4ControlFunction(self, table_actions, apply_table = None):
     for statement in self.statements:
         statement.check_apply_action_cases(table_actions)
+
+
+def check_apply_action_cases_P4BlackboxMethodCall(self, table_actions, apply_table = None):
+    pass
 
 def check_apply_action_cases_P4ControlFunctionStatement(self, table_actions, apply_table = None):
     pass

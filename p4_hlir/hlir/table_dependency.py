@@ -260,7 +260,8 @@ class rmt_table_graph():
 
     def __contains__(self, table):
         if type(table) is p4.p4_table or\
-           type(table) is p4.p4_conditional_node:
+           type(table) is p4.p4_conditional_node or\
+           type(table) is p4.p4_action_node:
             return table in self._p4_visited
         print type(table)
         assert(False)
@@ -288,7 +289,7 @@ class rmt_table_graph():
             cb = self._p4_visited[cb_p4[0]], cb_p4[1]
         else:
             cb = None
-        if type(p4_node) is p4.p4_table:
+        if isinstance(p4_node, p4.p4_table):
             table = rmt_p4_table(p4_node, cb)
         else:
             table = rmt_conditional_table(p4_node, cb)
@@ -509,7 +510,7 @@ def parse_p4_table_graph(table_graph, p4_node,
             if nt: parse_p4_table_graph(table_graph, nt, table,
                                            action_set = None)
 
-    elif(type(p4_node) is p4.p4_table):
+    elif(isinstance(p4_node, p4.p4_table)):
         table_actions = defaultdict(set)
         hit_miss = False
         for a in next_tables.keys():

@@ -56,14 +56,21 @@ class p4_method (p4_action):
             for arg_idx, arg in enumerate(args):
                 param_name = self.signature[arg_idx]
                 param_types = self.signature_flags[self.signature[arg_idx]]["type"]
+
+                # Resolve argument, if it's a string
+                if type(arg) is str:
+                    arg = hlir._resolve_object(self.params[arg_idx][1], arg)
+                    args[arg_idx] = arg
+
+                # Confirm type
                 if type(arg) not in param_types:
                     expected_type=", ".join(t.__name__ for t in param_types)
                     if len(param_types) == 1:
                         expected_type = "type "+expected_type
                     else:
-                        expected_type = "types {"+expected_type+"}"
+                        expected_type = "one of types {"+expected_type+"}"
                     raise p4_compiler_msg(
-                        "Incorrect type for method '%s' parameter '%s'  (got %s, expected %s)" % (
+                        "Incorrect type for method '%s' parameter '%s'  (got type %s, expected %s)" % (
                             str(self), param_name, type(arg).__name__, expected_type
                         )
                     )
