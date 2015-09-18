@@ -87,6 +87,8 @@ class HLIR():
             print "no source file to process"
             return False
 
+        self.preprocessor_args.append("-I"+os.path.join(target_root(), "p4_lib"))
+
         # Preprocess all program text
         preprocessed_sources = []
         try:
@@ -218,6 +220,17 @@ class HLIR():
                 )
         elif obj_type == "expression":
             # TODO
+            p4_objects, errors_cnt = P4Parser(
+                start='general_exp',
+                silent=True
+            ).parse(value)
+            if errors_cnt > 0:
+                print errors_cnt, "errors during parsing"
+                print "Interrupting compilation"
+                return False
+
+            print p4_objects
+            exit(-1)
             return value
         else:
             value = value.strip();
@@ -243,9 +256,9 @@ class HLIR():
             subtype = type_spec.qualifiers["subtype"]
             try:                    
                 if obj_type == "header" or obj_type == "metadata":
-                    subtype = self.p4_headers[subtype]
+                    subtype = self.p4_headers[subtype].name
                 elif obj_type == "blackbox":
-                    subtype = self.p4_blackbox_types[subtype]
+                    subtype = self.p4_blackbox_types[subtype].name
             except KeyError:
                 raise p4.p4_compiler_msg(
                     "Reference to undefined type '%s'" % (subtype)
@@ -271,11 +284,11 @@ class HLIR():
                     "Reference to undefined %s '%s'" % (obj_type.replace("_"," "), value)
                 )
             except TypeError:
-                p4_compiler_msg(
+                raise p4.p4_compiler_msg(
                     "Object '%s' is not of type '%s'" % (value, obj_type + " " + subtype.name)
                 )
 
-        raise p4_compiler_msg (
+        raise p4.p4_compiler_msg (
             "Unexpected type '%s'" % obj_type
         )
 

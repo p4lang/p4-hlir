@@ -17,16 +17,24 @@ from tokenizer import P4Lexer
 from ast import *
 
 class P4Parser:
-    def __init__(self):
+    def __init__(self, start='p4_objects', silent=False):
         self.lexer = P4Lexer()
         self.lexer.build()
 
         self.tokens = self.lexer.tokens
 
-        self.parser = yacc.yacc(module = self,
-                                write_tables=0,
-                                debug=False,
-                                start = 'p4_objects')
+        if silent:
+            silent = {"errorlog":yacc.NullLogger()}
+        else:
+            silent = {}
+
+        self.parser = yacc.yacc(
+            module = self,
+            write_tables=0,
+            debug=False,
+            start = start,
+            **silent
+        )
 
         self.errors_cnt = 0
         self.current_pragmas = set()
@@ -162,7 +170,7 @@ class P4Parser:
         if type_name == "bit":
             if len(p) > 2:
                 qualifiers["width"] = p[3]
-                if len(p) > 3:
+                if len(p) > 5:
                     for elem in p[5]:
                         qualifiers[elem] = True
             else:
@@ -435,7 +443,10 @@ class P4Parser:
         """ arith_exp : field_ref
         """
         p[0] = p[1]
+<<<<<<< HEAD
 
+=======
+>>>>>>> 16cbd61... More blackbox work
 
     # INSTANCE DECLARATION
 
@@ -1558,20 +1569,23 @@ class P4Parser:
                          "Invalid action statement in action body")
 
     def p_arg_list_1(self, p):
-        """ arg_list : arg
+        """ arg_list : general_exp
         """
         p[0] = [p[1]]
 
     def p_arg_list_2(self, p):
-        """ arg_list : arg_list COMMA arg
+        """ arg_list : arg_list COMMA general_exp
         """
         p[0] = p[1] + [p[3]]
 
+<<<<<<< HEAD
     def p_arg(self, p):
         """ arg : general_exp
         """
         p[0] = p[1]
 
+=======
+>>>>>>> 16cbd61... More blackbox work
     
     # TABLE DECLARATION
 
@@ -2042,41 +2056,25 @@ class P4Parser:
         p[0] = p[1]
 
     def p_bool_exp_6(self, p):
-        """ bool_exp : exp LT exp
-                     | exp GT exp
-                     | exp LE exp
-                     | exp GE exp
-                     | exp EQ exp
-                     | exp NE exp
+        """ bool_exp : arith_exp LT arith_exp
+                     | arith_exp GT arith_exp
+                     | arith_exp LE arith_exp
+                     | arith_exp GE arith_exp
+                     | arith_exp EQ arith_exp
+                     | arith_exp NE arith_exp
         """
         p[0] = P4BinaryExpression(self.get_filename(), p.lineno(1),
                                   p[2], p[1], p[3])
 
-    def p_exp_1(self, p):
-        """ exp : field_ref
+
+    def p_general_exp(self, p):
+        """ general_exp : bool_exp
+                        | arith_exp
+                        | header_ref
         """
         p[0] = p[1]
 
-    def p_exp_2(self, p):
-        """ exp : NOT exp
-                | MINUS exp %prec UMINUS
-                | PLUS exp %prec UMINUS
-        """
-        p[0] = P4UnaryExpression(self.get_filename(), p.lineno(1), p[1], p[2])
-
-    def p_exp_3(self, p):
-        """ exp : exp AND exp
-                | exp OR exp
-                | exp XOR exp
-        """
-        p[0] = P4BinaryExpression(self.get_filename(), p.lineno(1),
-                                  p[2], p[1], p[3])
-
-    def p_exp_4(self, p):
-        """ exp : const_value
-        """
-        p[0] = p[1]
-
+<<<<<<< HEAD
     def p_exp_5(self, p):
         """ exp : LPAREN exp RPAREN
         """
@@ -2162,6 +2160,8 @@ class P4Parser:
         """
         p[0] = p[1]
 
+=======
+>>>>>>> 16cbd61... More blackbox work
     # PARSER EXCEPTIONS
 
     def p_p4_declaration_15(self, p):

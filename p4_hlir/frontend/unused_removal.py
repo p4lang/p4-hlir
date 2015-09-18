@@ -38,6 +38,7 @@ def mark_used_P4BlackboxType(self, objects, types = None):
         elif member[0] == "method":
             for arg in member[2]:
                 arg_type = arg[1]
+                obj = None
                 if arg_type.name == "header" or arg_type.name == "metadata":
                     obj = objects.get_object(arg_type.qualifiers["subtype"], P4HeaderType)
                 elif arg_type.name == "blackbox":

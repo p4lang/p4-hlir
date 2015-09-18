@@ -152,6 +152,8 @@ class p4_action_node (p4_table):
 
         self.args = args
 
+        self.next_[self.actions[0]] = None
+
         hlir.p4_action_nodes[self.name] = self
 
     def build(self, hlir):
