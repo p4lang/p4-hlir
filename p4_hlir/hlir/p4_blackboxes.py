@@ -203,6 +203,8 @@ class p4_blackbox_type (p4_object):
                 method_dict[new_method.name] = new_method
         self.methods = method_dict
 
+        self.instances = OrderedDict()
+
         hlir.p4_blackbox_types[self.name] = self
 
 
@@ -237,6 +239,7 @@ class p4_blackbox_instance (p4_object):
             )
         else:
             self.blackbox_type = hlir.p4_blackbox_types[self.blackbox_type]
+            self.blackbox_type.instances[self.name] = self
 
         for method in self.blackbox_type.methods.values():
             self.methods[method.name] = p4_method(
@@ -270,9 +273,7 @@ class p4_blackbox_instance (p4_object):
             )
 
             if isinstance(processed_attributes[attr_name], p4_expression):
-                print processed_attributes[attr_name]
                 try:
-                    # TODO: locals
                     local_vars = self.blackbox_type.attributes[attr_name].expr_locals
                     local_vars = {var:var for var in local_vars}
                     processed_attributes[attr_name].resolve_names(
