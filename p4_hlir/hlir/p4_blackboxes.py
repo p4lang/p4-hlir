@@ -16,6 +16,7 @@ from p4_core import *
 from p4_sized_integer import p4_sized_integer
 from p4_headers import p4_field
 from p4_imperatives import p4_table_entry_data, p4_action, p4_signature_ref
+from p4_expressions import p4_expression
 
 from p4_hlir.util.OrderedSet import OrderedSet
 from collections import OrderedDict, defaultdict
@@ -26,7 +27,8 @@ class p4_attribute (object):
         self.parent = parent
         self.optional = optional
         self.value_type = value_type
-        self.expr_locals = expr_locals
+        self.expr_locals = expr_locals if expr_locals else []
+
 
     def __str__(self):
         return self.parent.name + "." + self.name
@@ -168,7 +170,7 @@ class p4_blackbox_type (p4_object):
                         elif prop[0] == "type":
                             # TODO: more formally represnt types
                             attr.value_type = prop[1]
-                        elif prop[0] == "expression_local_variables":
+                        elif prop[0] == "locals":
                             attr.expr_locals = prop[1]
                         else:
                             raise p4_compiler_msg (
@@ -262,8 +264,26 @@ class p4_blackbox_instance (p4_object):
 
             processed_attributes[attr_name] = hlir._resolve_object(
                 self.blackbox_type.attributes[attr_name].value_type,
-                attr_value
+                attr_value,
+                filename=self.filename,
+                lineno=self.lineno
             )
+
+            if isinstance(processed_attributes[attr_name], p4_expression):
+                print processed_attributes[attr_name]
+                try:
+                    # TODO: locals
+                    local_vars = self.blackbox_type.attributes[attr_name].expr_locals
+                    local_vars = {var:var for var in local_vars}
+                    processed_attributes[attr_name].resolve_names(
+                        hlir,
+                        local_vars
+                    )
+                except p4_compiler_msg as p:
+                    p.filename = self.filename
+                    p.lineno = self.lineno
+                    raise
+
         self.attributes = processed_attributes
 
         missing_attributes = self.blackbox_type.required_attributes - OrderedSet(self.attributes.keys())

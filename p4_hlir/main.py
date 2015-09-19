@@ -177,8 +177,7 @@ class HLIR():
         elif obj_type == "int":
             return int
         elif obj_type == "expression":
-            # TODO
-            return value
+            return p4.p4_expression
         elif obj_type == "bit":
             return p4.p4_field
         elif obj_type == "varbit":
@@ -205,7 +204,7 @@ class HLIR():
             "Unexpected type '%s'" % obj_type
         )
 
-    def _resolve_object(self, type_spec, value):
+    def _resolve_object(self, type_spec, value, filename=None, lineno=None):
         obj_type = type_spec.name
         if obj_type == "string":
             return value
@@ -219,19 +218,21 @@ class HLIR():
                     "Invalid numeric literal '%s'" % value.strip()
                 )
         elif obj_type == "expression":
-            # TODO
+            if lineno != None:
+                value = ("#line %i\n" % lineno) + value
             p4_objects, errors_cnt = P4Parser(
                 start='general_exp',
                 silent=True
-            ).parse(value)
+            ).parse(
+                value,
+                filename=filename
+            )
             if errors_cnt > 0:
                 print errors_cnt, "errors during parsing"
                 print "Interrupting compilation"
                 return False
 
-            print p4_objects
-            exit(-1)
-            return value
+            return p4_objects.dump_to_p4(self)
         else:
             value = value.strip();
 

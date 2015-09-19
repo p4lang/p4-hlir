@@ -40,9 +40,9 @@ class P4Parser:
         self.current_pragmas = set()
         
         
-    def parse(self, data, filename = ''):
-        # self.lexer.filename = filename
-        self.lexer.reset_lineno()
+    def parse(self, data, filename = None):
+        if filename != None:
+            self.lexer.filename = filename
         p4_objects = self.parser.parse(input = data,
                                        lexer = self.lexer)
         return p4_objects, self.errors_cnt
@@ -2296,14 +2296,14 @@ class P4Parser:
         """ blackbox_type_declaration : BLACKBOX_TYPE blackbox_type_name SEMI
                                       | BLACKBOX_TYPE blackbox_type_name LBRACE RBRACE
         """
-        p[0] = P4BlackboxType(self.get_filename(), p.lineno(2), p[2])
+        p[0] = P4BlackboxType(self.get_filename(), p.lineno(1), p[2])
 
     def p_blackbox_type_declaration_2(self, p):
         """ blackbox_type_declaration : BLACKBOX_TYPE blackbox_type_name LBRACE \
                                             blackbox_member_list \
                                         RBRACE
         """
-        p[0] = P4BlackboxType(self.get_filename(), p.lineno(2), p[2], p[4])
+        p[0] = P4BlackboxType(self.get_filename(), p.lineno(1), p[2], p[4])
 
     def p_blackbox_type_name(self, p):
         """ blackbox_type_name : ID
@@ -2419,14 +2419,14 @@ class P4Parser:
     def p_blackbox_instance_declaration_1(self, p):
         """ blackbox_instance_declaration : BLACKBOX blackbox_type_name ID SEMI
         """
-        p[0] = P4BlackboxInstance(self.get_filename(), p.lineno(2), p[3], p[2])
+        p[0] = P4BlackboxInstance(self.get_filename(), p.lineno(1), p[3], p[2])
 
     def p_blackbox_instance_declaration_2(self, p):
         """ blackbox_instance_declaration : BLACKBOX blackbox_type_name ID LBRACE \
                                                 blackbox_instance_attribute_list \
                                             RBRACE
         """
-        p[0] = P4BlackboxInstance(self.get_filename(), p.lineno(2), p[3], p[2], p[5])
+        p[0] = P4BlackboxInstance(self.get_filename(), p.lineno(1), p[3], p[2], p[5])
 
     def p_blackbox_instance_attribute_list (self, p):
         """ blackbox_instance_attribute_list : blackbox_instance_attribute_list blackbox_instance_attribute

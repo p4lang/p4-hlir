@@ -101,10 +101,10 @@ def p4_validate(hlir):
     # object type A can reference objects of type B, B should precede A in the
     # list
     p4_types = [
-        hlir.p4_blackbox_types,
-        hlir.p4_blackbox_instances,
         hlir.p4_headers,
         hlir.p4_header_instances,
+        hlir.p4_blackbox_types,
+        hlir.p4_blackbox_instances,
         hlir.p4_field_lists,
         hlir.p4_field_list_calculations,
         hlir.p4_actions,

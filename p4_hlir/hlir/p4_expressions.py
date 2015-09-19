@@ -15,6 +15,7 @@
 import operator
 import ast
 import p4_headers
+from p4_core import p4_compiler_msg
 
 ops = [
     (ast.Add, operator.add, "+"),
@@ -61,16 +62,56 @@ class p4_expression(object):
                 self.op+" "+
                 str(self.right)+")")
 
-    def resolve_names(self, hlir):
+    def resolve_names(self, hlir, local_vars=None):
+        """
+        Change strings in the expression into references to their relevant
+        objects.
+
+        The optional local_vars dictionary maps names not in the HLIR to their
+        appropriate resolved objects
+        """
+        if local_vars == None:
+            local_vars = {}
+
         if self.op=="valid":
-            self.right = hlir.p4_header_instances[self.right]
+            if self.right in local_vars:
+                self.right = local_vars[self.right]
+            else:
+                try:
+                    self.right = hlir.p4_header_instances[self.right]
+                except KeyError:
+                    raise p4_compiler_msg ("Undeclared identifier '%s'" % self.right)
+
+                # TODO: once types are in the HLIR, modify this function to
+                #       accept HLIR types and use those instead of the above:
+                # self.right = hlir._resolve_object(p4_headers.p4_header_instance, self.right)
         else:
+
             if type(self.left) is p4_expression:
                 self.left.resolve_names (hlir)
             elif type(self.left) is str:
-                self.left = hlir.p4_fields[self.left]
+                if self.left in local_vars:
+                    self.left = local_vars[self.left]
+                else:
+                    try:
+                        self.left = hlir.p4_fields[self.left]
+                    except KeyError:
+                        raise p4_compiler_msg ("Undeclared identifier '%s'" % self.left)
+                    # TODO: once types are in the HLIR, modify this function to
+                    #       accept HLIR types and use those instead of the above:
+                    # self.left = hlir._resolve_object(p4_headers.p4_field, self.left)
 
             if type(self.right) is p4_expression:
                 self.right.resolve_names (hlir)
             elif type(self.right) is str:
-                self.right = hlir.p4_fields[self.right]
+                if self.right in local_vars:
+                    self.right = local_vars[self.right]
+                else:
+                    try:
+                        self.right = hlir.p4_fields[self.right]
+                    except KeyError:
+                        raise p4_compiler_msg ("Undeclared identifier '%s'" % self.right)
+
+                    # TODO: once types are in the HLIR, modify this function to
+                    #       accept HLIR types and use those instead of the above:
+                    # self.right = hlir._resolve_object(p4_headers.p4_field, self.right)
