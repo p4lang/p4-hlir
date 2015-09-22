@@ -242,7 +242,7 @@ def _p4_control_flow_to_table_graph(hlir,
             next_parents = [call_entry]
             call_entry.control_flow_parent = parent_fn.name
             call_entry.conditional_barrier = conditional_barrier
-        elif type(call) is tuple and type(call[0]) is p4_blackboxes.p4_method:
+        elif type(call) is tuple and type(call[0]) is p4_blackboxes.p4_blackbox_method:
             call_entry = p4_action_node (hlir, call[0], call[1])
             next_parents = [call_entry]
             call_entry.control_flow_parent = parent_fn.name

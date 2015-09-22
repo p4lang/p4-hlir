@@ -21,7 +21,7 @@ from p4_expressions import p4_expression
 from p4_hlir.util.OrderedSet import OrderedSet
 from collections import OrderedDict, defaultdict
 
-class p4_attribute (object):
+class p4_blackbox_attribute (object):
     def __init__ (self, name, parent, optional=False, value_type=None, expr_locals=None):
         self.name = name
         self.parent = parent
@@ -33,7 +33,7 @@ class p4_attribute (object):
     def __str__(self):
         return self.parent.name + "." + self.name
 
-class p4_method (p4_action):
+class p4_blackbox_method (p4_action):
     def __init__ (self, hlir, name, parent, params=None, instantiated=False):
         self.name = name
         self.parent = parent
@@ -154,7 +154,7 @@ class p4_blackbox_type (p4_object):
                     self.filename, self.lineno
                 )
             else:
-                attr = p4_attribute(name=attribute[0], parent=self)
+                attr = p4_blackbox_attribute(name=attribute[0], parent=self)
 
                 specified_props = set()
                 for prop in attribute[1]:
@@ -198,7 +198,7 @@ class p4_blackbox_type (p4_object):
                     self.filename, self.lineno
                 )
             else:
-                new_method = p4_method(hlir=hlir, name=method[0], parent=self, params=method[1])
+                new_method = p4_blackbox_method(hlir=hlir, name=method[0], parent=self, params=method[1])
 
                 method_dict[new_method.name] = new_method
         self.methods = method_dict
@@ -242,7 +242,7 @@ class p4_blackbox_instance (p4_object):
             self.blackbox_type.instances[self.name] = self
 
         for method in self.blackbox_type.methods.values():
-            self.methods[method.name] = p4_method(
+            self.methods[method.name] = p4_blackbox_method(
                 hlir,
                 method.name,
                 self,
