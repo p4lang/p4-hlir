@@ -162,21 +162,21 @@ class P4Parser:
                            | VOID
                            | BIT
                            | BIT LT const_value GT
-                           | BIT LT const_value COMMA identifier_list GT
+                           | BIT LT const_value COMMA field_mod_list GT
                            | VARBIT LT const_value GT
         """
         type_name = p[1]
         qualifiers = {}
         if type_name == "bit":
             if len(p) > 2:
-                qualifiers["width"] = p[3]
+                qualifiers["width"] = p[3].i
                 if len(p) > 5:
                     for elem in p[5]:
                         qualifiers[elem] = True
             else:
                 qualifiers["width"] = 1
         elif type_name == "varbit":
-            qualifiers["width"] = p[3]
+            qualifiers["width"] = p[3].i
         p[0] = P4TypeSpec(self.get_filename(), p.lineno(1), type_name, qualifiers)
 
     # PARAMETER LISTS

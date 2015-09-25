@@ -111,6 +111,9 @@ class p4_blackbox_method (p4_action):
             param_type = hlir._type_spec_to_hlir(param[1])
             flags["type"].add(param_type)
 
+            if param_type is p4_field:
+                flags["type"].add(int)
+
             # TODO: we don't always want to allow numeric data to be definable
             #       by the control plane - find a way to distinguish
             if param_type is p4_field or param_type is int:

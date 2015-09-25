@@ -179,9 +179,10 @@ class HLIR():
         elif obj_type == "expression":
             return p4.p4_expression
         elif obj_type == "bit":
+            # TODO: or int
             return p4.p4_field
         elif obj_type == "varbit":
-            # TODO
+            # TODO: need to enforce that the field's width is *
             return p4.p4_field 
         elif obj_type == "field_list":
             return p4.p4_field_list
@@ -233,6 +234,55 @@ class HLIR():
                 return False
 
             return p4_objects.dump_to_p4(self)
+        elif obj_type == "bit":
+            type_width = type_spec.qualifiers["width"]
+            type_saturating = type_spec.qualifiers.get("saturating", False)
+            type_signed = type_spec.qualifiers.get("signed", False)
+
+            try:
+                val = p4.p4_sized_integer.from_string(value)
+                if type_width != 0:
+                    # TODO: put warnings here for if widths don't match up or
+                    #       value is too large
+                    #       find some way to put filename and lineno on warning
+                    pass
+                # TODO: signedness warning
+                return val
+            except:
+                try:
+                    field = self.p4_fields[value.strip()]
+                    field_signed = p4.P4_SIGNED in field.attributes
+                    field_saturating = p4.P4_SATURATING in field.attributes
+                    if type_width != 0:
+                        if type_width != field.width:
+                            raise p4.p4_compiler_msg(
+                                "Expected %i-bit bitstring, but field '%s' is %s bits." % (
+                                    type_width,
+                                    str(field),
+                                    str(field.width)
+                                )
+                            )
+                    if type_saturating != field_saturating:
+                        raise p4.p4_compiler_msg(
+                            "Expected %s bitstring, but field '%s' is %s." % (
+                                "saturating" if type_saturating else "non-saturating",
+                                str(field),
+                                "saturating" if field_saturating else "non-saturating"
+                            )
+                        )
+                    if type_signed != field_signed:
+                        raise p4.p4_compiler_msg(
+                            "Expected %s bitstring, but field '%s' is %s." % (
+                                "signed" if type_signed else "unsigned",
+                                str(field),
+                                "signed" if field_signed else "unsigned"
+                            )
+                        )
+                    return field
+                except KeyError:
+                    raise p4.p4_compiler_msg(
+                        "Reference to undefined object '%s'" % value.strip()
+                    )
         else:
             value = value.strip();
 
