@@ -142,6 +142,7 @@ class P4Parser:
                       | ACTION
                       | TABLE
                       | CONTROL
+                      | deprecated_types
                       | data_type_spec
         """
         if isinstance(p[1], P4TypeSpec):
@@ -178,6 +179,21 @@ class P4Parser:
         elif type_name == "varbit":
             qualifiers["width"] = p[3].i
         p[0] = P4TypeSpec(self.get_filename(), p.lineno(1), type_name, qualifiers)
+
+    def p_deprecated_types(self, p):
+        """ deprecated_types : COUNTER
+                             | METER
+                             | REGISTER
+                             | FIELD_LIST_CALCULATION
+                             | CALCULATED_FIELD
+                             | PARSER_VALUE_SET
+        """
+        # TODO: this production is here to allow references to currently
+        #       first-class P4 objects. once these first-class versions of 
+        #       counter/meter/etc. are removed from the grammar, this production
+        #       should be removed
+        p[0] = p[1]
+
 
     # PARAMETER LISTS
     def p_parameter_list_1(self, p):
@@ -2328,7 +2344,7 @@ class P4Parser:
         # TODO: this production is here to allow blackbox definitions of
         #       currently first-class P4 objects. once these first-class
         #       versions of counter/meter/etc. are removed from the grammar,
-        #       all occurences of this producion can just be replaced with
+        #       all occurences of this production can just be replaced with
         #       ID
         p[0] = p[1]
 
@@ -2352,7 +2368,7 @@ class P4Parser:
         # TODO: this production is here to allow blackbox definitions of
         #       currently first-class P4 objects. once these first-class
         #       versions of counter/meter/etc. are removed from the grammar,
-        #       all occurences of this producion can just be replaced with
+        #       all occurences of this production can just be replaced with
         #       ID
         p[0] = p[1]
 

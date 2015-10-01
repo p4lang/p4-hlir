@@ -201,6 +201,20 @@ class HLIR():
         elif obj_type == "blackbox":
             return p4.p4_blackbox_instance
 
+        # Deprecated types:
+        elif obj_type == "counter":
+            return p4.p4_counter
+        elif obj_type == "meter":
+            return p4.p4_meter
+        elif obj_type == "register":
+            return p4.p4_register
+        elif obj_type == "field_list_calculation":
+            return p4.p4_field_list_calculation
+        elif obj_type == "calculated_field":
+            return p4.p4_calculated_field
+        elif obj_type == "parser_value_set":
+            return p4.p4_parser_value_set
+
         raise p4_compiler_msg (
             "Unexpected type '%s'" % obj_type
         )
@@ -299,6 +313,21 @@ class HLIR():
                     return self.p4_tables[value]
                 elif obj_type == "control":
                     return self.p4_control_flows[value]
+
+                # Deprecated types:
+                elif obj_type == "counter":
+                    return self.p4_counters[value]
+                elif obj_type == "meter":
+                    return self.p4_meters[value]
+                elif obj_type == "register":
+                    return self.p4_registers[value]
+                elif obj_type == "field_list_calculation":
+                    return self.p4_field_list_calculations[value]
+                elif obj_type == "calculated_field":
+                    return self.p4_calculated_fields[value]
+                elif obj_type == "parser_value_set":
+                    return self.p4_parser_value_sets[value]
+
             except KeyError:
                 raise p4.p4_compiler_msg(
                     "Reference to undefined %s '%s'" % (obj_type.replace("_"," "), value)
