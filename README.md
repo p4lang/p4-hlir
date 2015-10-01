@@ -51,3 +51,10 @@ import p4_hlir.hlir.p4 as p4
 
 To get the table graph or parse graph for a P4 program, use:  
 p4-graphs \<path_to_p4_program\>
+
+# Compiling to EBPF
+
+There are multiple back-ends that can consume the HLIR P4 program representation.
+A compiler back-end which can compile a subset of P4 programs into eBPF programs 
+that can be run in the Linux kernel can be found at
+https://github.com/iovisor/bcc/tree/master/src/cc/frontends/p4
