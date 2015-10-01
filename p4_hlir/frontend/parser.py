@@ -443,10 +443,6 @@ class P4Parser:
         """ arith_exp : field_ref
         """
         p[0] = p[1]
-<<<<<<< HEAD
-
-=======
->>>>>>> 16cbd61... More blackbox work
 
     # INSTANCE DECLARATION
 
@@ -1216,7 +1212,7 @@ class P4Parser:
         """ direct_or_static : DIRECT error SEMI
         """
         self.print_error(p.lineno(1),
-                         "Invalid direct attribute for counter")
+                         "Invalid direct attribute")
 
     def p_direct_or_static_opt_3(self, p):
         """ direct_or_static : STATIC COLON ID SEMI
@@ -1228,7 +1224,7 @@ class P4Parser:
         """ direct_or_static : STATIC error SEMI
         """
         self.print_error(p.lineno(1),
-                         "Invalid static attribute for counter")
+                         "Invalid static attribute")
         
     def p_instance_count_1(self, p):
         """ instance_count : empty
@@ -1244,7 +1240,7 @@ class P4Parser:
         """ instance_count : INSTANCE_COUNT error SEMI
         """
         self.print_error(p.lineno(1),
-                         "Invalid instance_count attribute for counter")
+                         "Invalid instance_count attribute")
 
     def p_counter_min_width_1(self, p):
         """ counter_min_width : empty
@@ -1330,7 +1326,40 @@ class P4Parser:
         """ direct_result : RESULT error SEMI
         """
         self.print_error(p.lineno(1),
-                         "Invalid result attribute for counter")
+                         "Invalid result attribute for meter")
+
+    def p_direct_pre_color_1(self, p):
+        """ direct_pre_color : empty
+        """
+        pass # None
+
+    def p_direct_pre_color_2(self, p):
+        """ direct_pre_color : PRE_COLOR COLON field_ref SEMI
+        """
+        p[0] = p[3]
+
+    def p_direct_pre_color_error_1(self, p):
+        """ direct_pre_color : PRE_COLOR error SEMI
+        """
+        self.print_error(p.lineno(1),
+                         "Invalid pre_color attribute for meter")
+
+    def p_meter_implementation_1(self, p):
+        """ meter_implementation : empty
+        """
+        pass # None
+
+    def p_meter_implementation_2(self, p):
+        """ meter_implementation : IMPLEMENTATION COLON ID SEMI
+        """
+        p[0] = p[3]
+
+    def p_meter_implementation_error_1(self, p):
+        """ meter_implementation : IMPLEMENTATION error SEMI
+        """
+        self.print_error(p.lineno(1),
+                         "Invalid implementation attribute for meter")
+
 
     # REGISTER
 
@@ -1578,14 +1607,6 @@ class P4Parser:
         """
         p[0] = p[1] + [p[3]]
 
-<<<<<<< HEAD
-    def p_arg(self, p):
-        """ arg : general_exp
-        """
-        p[0] = p[1]
-
-=======
->>>>>>> 16cbd61... More blackbox work
     
     # TABLE DECLARATION
 
@@ -2074,12 +2095,6 @@ class P4Parser:
         """
         p[0] = p[1]
 
-<<<<<<< HEAD
-    def p_exp_5(self, p):
-        """ exp : LPAREN exp RPAREN
-        """
-        p[0] = p[2]
-
     def p_general_exp(self, p):
         """ general_exp : expression
         """
@@ -2160,8 +2175,6 @@ class P4Parser:
         """
         p[0] = p[1]
 
-=======
->>>>>>> 16cbd61... More blackbox work
     # PARSER EXCEPTIONS
 
     def p_p4_declaration_15(self, p):
