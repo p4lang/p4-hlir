@@ -77,6 +77,12 @@ class Types:
     def get_name(type_):
         return Types.types_to_names[type_]
 
+    @staticmethod
+    def get_type(type_name):
+        for type_, name in Types.types_to_names.items():
+            if name == type_name:
+                return type_
+
 class P4TreeNode(object):
     errors_cnt = 0
     warnings_cnt = 0
@@ -182,6 +188,26 @@ class P4HeaderRefExpression(P4RefExpression):
     def __init__(self, filename, lineno, header, idx = None):
         super(P4HeaderRefExpression, self).__init__(filename, lineno, header)
         self.idx = idx
+
+class P4TypedRefExpression(P4RefExpression):
+    def __init__(self, filename, lineno, name, type_):
+        super(P4TypedRefExpression, self).__init__(filename, lineno, name)
+        self.type_ = type_
+
+class P4UserHeaderRefExpression(P4RefExpression):
+    def __init__(self, filename, lineno, name, header_type):
+        super(P4UserHeaderRefExpression, self).__init__(filename, lineno, name)
+        self.header_type = header_type
+
+class P4UserMetadataRefExpression(P4RefExpression):
+    def __init__(self, filename, lineno, name, header_type):
+        super(P4UserMetadataRefExpression, self).__init__(filename, lineno, name)
+        self.header_type = header_type
+
+class P4UserBlackboxRefExpression(P4RefExpression):
+    def __init__(self, filename, lineno, name, bbox_type):
+        super(P4UserBlackboxRefExpression, self).__init__(filename, lineno, name)
+        self.bbox_type = bbox_type
 
 # header ref can be latest !
 class P4FieldRefExpression(P4Expression):

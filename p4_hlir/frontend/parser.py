@@ -15,6 +15,7 @@
 from ply import yacc
 from tokenizer import P4Lexer
 from ast import *
+from collections import defaultdict
 
 class P4Parser:
     def __init__(self, start='p4_objects', silent=False):
@@ -2387,16 +2388,62 @@ class P4Parser:
                               RBRACE
 
         """
+        # TODO: define an ast object for this
         p[0] = ("attribute",p[2],p[4])
 
     def p_blackbox_member_2(self, p):
         """ blackbox_member : METHOD ID LPAREN parameter_list RPAREN SEMI
                             | METHOD ID LPAREN RPAREN SEMI
         """
-        if len(p) <=6 :
-            p[0] = ("method",p[2],[])
+        # TODO: define an ast object for this
+        if len(p) <= 6 :
+            p[0] = ("method",p[2],[],[])
         else:
-            p[0] = ("method",p[2],p[4])
+            p[0] = ("method",p[2],p[4],[])
+
+    def p_blackbox_member_3(self, p):
+        """ blackbox_member : METHOD ID LPAREN parameter_list RPAREN LBRACE method_body RBRACE
+                            | METHOD ID LPAREN RPAREN LBRACE method_body RBRACE
+        """
+        # TODO: define an ast object for this
+        if len(p) <= 8 :
+            p[0] = ("method",p[2],[],p[6])
+        else:
+            p[0] = ("method",p[2],p[4],p[7])
+
+    def p_blackbox_method_body(self, p):
+        """ method_body : method_access_list
+        """
+        # TODO: maybe do this processing later
+        p[0] = defaultdict(set)
+        for type_, attrs in p[1]:
+            p[0][type_].update(set(attrs))
+
+    def p_method_access_list_1(self, p):
+        """ method_access_list : empty
+        """
+        p[0] = []
+
+    def p_method_access_list_2(self, p):
+        """ method_access_list : method_access method_access_list
+        """
+        p[0] = [p[1]] + p[2]
+
+    def p_method_access_1(self, p):
+        """ method_access : method_access_type LBRACE identifier_list RBRACE
+        """
+        p[0] = (p[1], p[3])
+
+    def p_method_access_2(self, p):
+        """ method_access : method_access_type LBRACE RBRACE
+        """
+        p[0] = (p[1], [])
+
+    def p_method_access_type(self, p):
+        """ method_access_type : READS
+                               | ID
+        """
+        p[0] = p[1]
 
     def p_blackbox_attribute_property_list(self, p):
         """ blackbox_attribute_property_list : blackbox_attribute_property_list blackbox_attribute_property

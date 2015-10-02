@@ -28,6 +28,16 @@ import pkg_resources
 
 logger = logging.getLogger(__name__)
 
+import inspect
+import sys
+
+def target_root():
+    global __file__
+    if not hasattr(sys.modules[__name__], '__file__'):
+        __file__ = inspect.getfile(inspect.currentframe())
+    m_path = os.path.dirname(os.path.realpath(__file__))
+    return m_path
+
 class HLIR():
     def __init__(self, *args):
         self.source_files = [] + list(args)
@@ -168,209 +178,71 @@ class HLIR():
     def _check_source_path(self, source):
         return os.path.isfile(source)
 
+    _type_map = {
+        "string" : str,
+        "block" : str,
+        "int" : int,
+        "expression" : p4.p4_expression,
+        "bit" : p4.p4_field,
+        "varbit" : p4.p4_field,
+        "field_list" : p4.p4_field_list,
+        "parser" : p4.p4_parse_state,
+        "parser_exception" : p4.p4_parser_exception,
+        "action" : p4.p4_action,
+        "table" : p4.p4_table,
+        "control" : p4.p4_control_flow,
+        "header" : p4.p4_header_instance,
+        "metadata" : p4.p4_header_instance,
+        "blackbox" : p4.p4_blackbox_instance,
+        "counter" : p4.p4_counter,
+        "meter" : p4.p4_meter,
+        "register" : p4.p4_register,
+        "field_list_calculation" : p4.p4_field_list_calculation,
+        "parser_value_set" : p4.p4_parse_value_set,
+    }
+
     def _type_spec_to_hlir(self, type_spec):
         obj_type = type_spec.name
-        if obj_type == "string":
-            return str
-        elif obj_type == "block":
-            return str
-        elif obj_type == "int":
-            return int
-        elif obj_type == "expression":
-            return p4.p4_expression
-        elif obj_type == "bit":
-            # TODO: or int
-            return p4.p4_field
-        elif obj_type == "varbit":
-            # TODO: need to enforce that the field's width is *
-            return p4.p4_field 
-        elif obj_type == "field_list":
-            return p4.p4_field_list
-        elif obj_type == "parser":
-            return p4.p4_parser
-        elif obj_type == "parser_exception":
-            return p4.p4_parser_exception
-        elif obj_type == "action":
-            return p4.p4_action
-        elif obj_type == "table":
-            return p4.p4_table
-        elif obj_type == "control":
-            return p4.p4_control_flow
-        elif obj_type == "header" or obj_type == "metadata":
-            return p4.p4_header_instance
-        elif obj_type == "blackbox":
-            return p4.p4_blackbox_instance
 
-        # Deprecated types:
-        elif obj_type == "counter":
-            return p4.p4_counter
-        elif obj_type == "meter":
-            return p4.p4_meter
-        elif obj_type == "register":
-            return p4.p4_register
-        elif obj_type == "field_list_calculation":
-            return p4.p4_field_list_calculation
-        elif obj_type == "calculated_field":
-            return p4.p4_calculated_field
-        elif obj_type == "parser_value_set":
-            return p4.p4_parser_value_set
-
-        raise p4_compiler_msg (
-            "Unexpected type '%s'" % obj_type
-        )
+        try:
+            return HLIR._type_map[obj_type]
+        except:
+            # TODO: remove when semantic checking complete
+            raise p4_compiler_msg (
+                "Unexpected type '%s'" % obj_type
+            )
 
     def _resolve_object(self, type_spec, value, filename=None, lineno=None):
         obj_type = type_spec.name
+        # TODO: improve
+        if type(value) is not str:
+            return value
+        assert(type(value) is str)
         if obj_type == "string":
             return value
         elif obj_type == "block":
             return value
-        elif obj_type == "int":
-            try:
-                return p4.p4_sized_integer.from_string(value)
-            except:
-                raise p4.p4_compiler_msg(
-                    "Invalid numeric literal '%s'" % value.strip()
-                )
-        elif obj_type == "expression":
-            if lineno != None:
-                value = ("#line %i\n" % lineno) + value
-            p4_objects, errors_cnt = P4Parser(
-                start='general_exp',
-                silent=True
-            ).parse(
-                value,
-                filename=filename
-            )
-            if errors_cnt > 0:
-                print errors_cnt, "errors during parsing"
-                print "Interrupting compilation"
-                return False
-
-            return p4_objects.dump_to_p4(self)
-        elif obj_type == "bit":
-            type_width = type_spec.qualifiers["width"]
-            type_saturating = type_spec.qualifiers.get("saturating", False)
-            type_signed = type_spec.qualifiers.get("signed", False)
-
-            try:
-                val = p4.p4_sized_integer.from_string(value)
-                if type_width != 0:
-                    # TODO: put warnings here for if widths don't match up or
-                    #       value is too large
-                    #       find some way to put filename and lineno on warning
-                    pass
-                # TODO: signedness warning
-                return val
-            except:
-                try:
-                    field = self.p4_fields[value.strip()]
-                    field_signed = p4.P4_SIGNED in field.attributes
-                    field_saturating = p4.P4_SATURATING in field.attributes
-                    if type_width != 0:
-                        if type_width != field.width:
-                            raise p4.p4_compiler_msg(
-                                "Expected %i-bit bitstring, but field '%s' is %s bits." % (
-                                    type_width,
-                                    str(field),
-                                    str(field.width)
-                                )
-                            )
-                    if type_saturating != field_saturating:
-                        raise p4.p4_compiler_msg(
-                            "Expected %s bitstring, but field '%s' is %s." % (
-                                "saturating" if type_saturating else "non-saturating",
-                                str(field),
-                                "saturating" if field_saturating else "non-saturating"
-                            )
-                        )
-                    if type_signed != field_signed:
-                        raise p4.p4_compiler_msg(
-                            "Expected %s bitstring, but field '%s' is %s." % (
-                                "signed" if type_signed else "unsigned",
-                                str(field),
-                                "signed" if field_signed else "unsigned"
-                            )
-                        )
-                    return field
-                except KeyError:
-                    raise p4.p4_compiler_msg(
-                        "Reference to undefined object '%s'" % value.strip()
-                    )
+        elif obj_type == "header" or obj_type == "metadata":
+            obj = self.p4_header_instances[value]
+            assert(obj)
+            return obj
+        elif obj_type == "blackbox":
+            obj = self.p4_blackbox_instances[value]
+            assert(obj)
+            return obj
+        elif obj_type == "bit" or obj_type == "varbit":
+            obj = self.p4_fields[value]
+            assert(obj)
+            return obj
         else:
-            value = value.strip();
-
             try:
-                if obj_type == "field_list":
-                    return self.p4_field_lists[value]
-                elif obj_type == "parser":
-                    return self.p4_parsers[value]
-                elif obj_type == "parser_exception":
-                    return self.p4_parser_exceptions[value]
-                elif obj_type == "action":
-                    return self.p4_actions[value]
-                elif obj_type == "table":
-                    return self.p4_tables[value]
-                elif obj_type == "control":
-                    return self.p4_control_flows[value]
-
-                # Deprecated types:
-                elif obj_type == "counter":
-                    return self.p4_counters[value]
-                elif obj_type == "meter":
-                    return self.p4_meters[value]
-                elif obj_type == "register":
-                    return self.p4_registers[value]
-                elif obj_type == "field_list_calculation":
-                    return self.p4_field_list_calculations[value]
-                elif obj_type == "calculated_field":
-                    return self.p4_calculated_fields[value]
-                elif obj_type == "parser_value_set":
-                    return self.p4_parser_value_sets[value]
-
+                HLIR._type_map[obj_type].get_from_hlir(self, value)
+            
+            # TODO: remove when semantic checking complete
             except KeyError:
                 raise p4.p4_compiler_msg(
                     "Reference to undefined %s '%s'" % (obj_type.replace("_"," "), value)
                 )
-
-            subtype = type_spec.qualifiers["subtype"]
-            try:                    
-                if obj_type == "header" or obj_type == "metadata":
-                    subtype = self.p4_headers[subtype].name
-                elif obj_type == "blackbox":
-                    subtype = self.p4_blackbox_types[subtype].name
-            except KeyError:
-                raise p4.p4_compiler_msg(
-                    "Reference to undefined type '%s'" % (subtype)
-                )
-
-            try:
-                if obj_type == "header" or obj_type == "metadata":
-                    obj = self.p4_header_instances[value]
-                    if obj.header_type != subtype:
-                        raise TypeError
-                    if obj.metadata and obj_type != "metadata":
-                        raise TypeError
-                    if not obj.metadata and obj_type == "metadata":
-                        raise TypeError
-                    return obj
-                elif obj_type == "blackbox":
-                    obj = self.p4_blackbox_instances[value]
-                    if obj.blackbox_type != subtype:
-                        raise TypeError
-                    return obj
-            except KeyError:
-                raise p4.p4_compiler_msg(
-                    "Reference to undefined %s '%s'" % (obj_type.replace("_"," "), value)
-                )
-            except TypeError:
-                raise p4.p4_compiler_msg(
-                    "Object '%s' is not of type '%s'" % (value, obj_type + " " + subtype.name)
-                )
-
-        raise p4.p4_compiler_msg (
-            "Unexpected type '%s'" % obj_type
-        )
 
 def HLIR_from_txt (program_str, **kwargs):
     h = HLIR()

@@ -34,11 +34,12 @@ class p4_blackbox_attribute (object):
         return self.parent.name + "." + self.name
 
 class p4_blackbox_method (p4_action):
-    def __init__ (self, hlir, name, parent, params=None, instantiated=False):
+    def __init__ (self, hlir, name, parent, params=None, access=None, instantiated=False):
         self.name = name
         self.parent = parent
 
         self.params = params
+        self.access = access
 
         self.signature = []
         self.signature_widths = []
@@ -201,7 +202,9 @@ class p4_blackbox_type (p4_object):
                     self.filename, self.lineno
                 )
             else:
-                new_method = p4_blackbox_method(hlir=hlir, name=method[0], parent=self, params=method[1])
+                new_method = p4_blackbox_method(hlir=hlir, name=method[0],
+                                                parent=self, params=method[1],
+                                                access=method[2])
 
                 method_dict[new_method.name] = new_method
         self.methods = method_dict
@@ -250,6 +253,7 @@ class p4_blackbox_instance (p4_object):
                 method.name,
                 self,
                 params = method.params,
+                access = method.access,
                 instantiated = True
             )
 

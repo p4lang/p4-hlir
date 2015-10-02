@@ -17,6 +17,7 @@ from collections import defaultdict
 import json
 import os
 import unused_removal
+import blackbox_process
 
 class ObjectTable:
     def __init__(self):
@@ -99,6 +100,10 @@ class P4SemanticChecker:
         P4String.check = check_P4String
         P4Integer.check = check_P4Integer
         P4Bool.check = check_P4Bool
+        P4TypedRefExpression.check = check_P4TypedRefExpression
+        P4UserHeaderRefExpression.check = check_P4UserHeaderRefExpression
+        P4UserMetadataRefExpression.check = check_P4UserMetadataRefExpression
+        P4UserBlackboxRefExpression.check = check_P4UserBlackboxRefExpression
 
         P4BoolBinaryExpression.check = check_P4BoolBinaryExpression
         P4BoolUnaryExpression.check = check_P4BoolUnaryExpression
@@ -300,6 +305,15 @@ def import_objects(p4_objects, symbols, objects):
         else:
             objects.add_object(name, obj)
             symbols.add_type(name, obj.get_type_())
+        if isinstance(obj, P4HeaderInstanceRegular):
+            subtype = (Types.header_instance_regular, obj.header_type)
+            symbols.add_type(name, subtype)
+        elif isinstance(obj, P4HeaderInstanceMetadata):
+            subtype = (Types.header_instance_metadata, obj.header_type)
+            symbols.add_type(name, subtype)
+        elif isinstance(obj, P4BlackboxInstance):
+            subtype = (Types.blackbox_instance, obj.blackbox_type)
+            symbols.add_type(name, subtype)
 
 def import_header_fields(p4_objects, header_fields):
     for obj in p4_objects:
@@ -664,6 +678,12 @@ def check_P4Program(self, symbols, header_fields, objects, types = None):
     check_header_types(self.objects, header_fields)
     symbols.enterscope()
     import_objects(self.objects, symbols, objects)
+
+    bbox_attribute_types = {}
+    self.find_bbox_attribute_types(bbox_attribute_types)
+
+    self.resolve_bbox_attributes(bbox_attribute_types)
+
     for obj in self.objects:
         obj.check(symbols, header_fields, objects)
     if self.get_errors_cnt() == 0:
@@ -687,10 +707,39 @@ def check_P4Program(self, symbols, header_fields, objects, types = None):
         self.remove_unused(objects)
 
 def check_P4BlackboxType(self, symbols, header_fields, objects, types = None):
-    # TODO
+    # TODO !!!
     pass
 
 def check_P4BlackboxInstance(self, symbols, header_fields, objects, types = None):
+    for attr_name, attr_value in self.attributes:
+        attr_value.check(symbols, header_fields, objects,
+                         types = {Types.field, Types.int_, Types.string_})
+
+def check_P4TypedRefExpression(self, symbols, header_fields, objects, types = None):
+    type_ = Types.get_type(self.type_)
+    # call P4RefExpression.check
+    return super(P4TypedRefExpression, self).check(symbols, header_fields, objects, {type_})
+
+def check_P4UserHeaderRefExpression(self, symbols, header_fields, objects, types = None):
+    type_ = (Types.header_instance_regular, self.header_type)
+    has_type = symbols.has_type(self.name, type_)
+    if has_type: return
+    error_msg = "Invalid reference to %s in file %s at line %d:"\
+                " expected a reference to a header instance of type %s"\
+                % (self.name, self.filename, self.lineno, self.header_type)
+    P4TreeNode.print_error(error_msg)
+
+def check_P4UserMetadataRefExpression(self, symbols, header_fields, objects, types = None):
+    type_ = (Types.header_instance_metadata, self.header_type)
+    
+    has_type = symbols.has_type(self.name, type_)
+    if has_type: return
+    error_msg = "Invalid reference to %s in file %s at line %d:"\
+                " expected a reference to a metadata instance of type %s"\
+                % (self.name, self.filename, self.lineno, self.header_type)
+    P4TreeNode.print_error(error_msg)
+
+def check_P4UserBlackboxRefExpression(self, symbols, header_fields, objects, types = None):
     # TODO
     pass
 

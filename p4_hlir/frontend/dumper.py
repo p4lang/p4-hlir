@@ -108,6 +108,10 @@ class P4HlirDumper:
         P4String.dump_to_p4 = dump_to_p4_P4String
         P4Integer.dump_to_p4 = dump_to_p4_P4Integer
         P4Bool.dump_to_p4 = dump_to_p4_P4Bool
+        P4TypedRefExpression.dump_to_p4 = dump_to_p4_P4TypedRefExpression
+        P4UserHeaderRefExpression.dump_to_p4 = dump_to_p4_P4UserHeaderRefExpression
+        P4UserMetadataRefExpression.dump_to_p4 = dump_to_p4_P4UserMetadataRefExpression
+        P4UserBlackboxRefExpression.dump_to_p4 = dump_to_p4_P4UserBlackboxRefExpression
 
         P4BoolBinaryExpression.dump_to_p4 = dump_to_p4_P4BoolBinaryExpression
         P4BoolUnaryExpression.dump_to_p4 = dump_to_p4_P4BoolUnaryExpression
@@ -738,6 +742,7 @@ def dump_to_p4_P4BlackboxType(self, hlir):
         elif member[0] == "method":
             methods.append(member[1:])
         else:
+            # TODO: catch it earlier
             assert False, "Unrecognized blackbox member type %s" % str(member[0])
 
     g_bb_type = p4_blackbox_type(
@@ -751,12 +756,27 @@ def dump_to_p4_P4BlackboxType(self, hlir):
     g_bb_type._pragmas = self._pragmas.copy()
 
 def dump_to_p4_P4BlackboxInstance(self, hlir):
+    attributes = []
+    for attr_name, attr_value in self.attributes:
+        attributes.append( (attr_name, attr_value.dump_to_p4(hlir)) )
     g_bb_inst = p4_blackbox_instance(
         hlir,
         self.name,
         filename = self.filename,
         lineno = self.lineno,
         blackbox_type = self.blackbox_type,
-        attributes = self.attributes
+        attributes = attributes
     )
     g_bb_inst._pragmas = self._pragmas.copy()
+
+def dump_to_p4_P4TypedRefExpression(self, hlir):
+    return self.name
+
+def dump_to_p4_P4UserHeaderRefExpression(self, hlir):
+    return self.name
+
+def dump_to_p4_P4UserMetadataRefExpression(self, hlir):
+    return self.name
+
+def dump_to_p4_P4UserBlackboxRefExpression(self, hlir):
+    return self.name

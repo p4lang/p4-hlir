@@ -14,14 +14,38 @@
 
 from ast import *
 
+def get_ast_type(type_):
+    types_to_ast_types = {
+        Types.header_type : P4HeaderType,
+        Types.header_instance : P4HeaderInstance,
+        Types.header_instance_regular : P4HeaderInstanceRegular,
+        Types.header_instance_metadata : P4HeaderInstanceMetadata,
+        Types.field_list : P4FieldList,
+        Types.field_list_calculation : P4FieldListCalculation,
+        Types.value_set : P4ValueSet,
+        Types.parser_function : P4ParserFunction,
+        Types.counter : P4Counter,
+        Types.meter : P4Meter,
+        Types.register : P4Register,
+        Types.primitive_action : P4PrimitiveAction,
+        Types.action_function : P4ActionFunction,
+        Types.table : P4Table,
+        Types.action_profile : P4ActionProfile,
+        Types.action_selector : P4ActionSelector,
+        Types.control_function : P4ControlFunction,
+        Types.parser_exception : P4ParserException,
+        Types.blackbox_type : P4BlackboxType,
+        Types.blackbox_instance : P4BlackboxInstance,
+        Types.type_spec : P4TypeSpec,
+    }
+
+    return types_to_ast_types[type_]
 
 def mark_used_P4Program(self, objects, types = None):
     for obj in self.objects:
         obj.mark_used(objects)
 
 def mark_used_P4BlackboxType(self, objects, types = None):
-    self.mark()
-
     for member in self.members:
         if member[0] == "attribute":
             for member_prop in member[2]:
@@ -47,56 +71,31 @@ def mark_used_P4BlackboxType(self, objects, types = None):
                     obj.mark()
                     obj.mark_used(objects, types)
 
+def mark_used_P4TypedRefExpression(self, objects, types = None):
+    ast_type = get_ast_type(Types.get_type(self.type_))
+    # call P4RefExpression.mark_used
+    return super(P4TypedRefExpression, self).mark_used(objects, {ast_type})
+
+def mark_used_P4UserHeaderRefExpression(self, objects, types = None):
+    header_instance = objects.get_object(self.name, P4HeaderInstance)
+    if header_instance: header_instance.mark()
+
+def mark_used_P4UserMetadataRefExpression(self, objects, types = None):
+    header_instance = objects.get_object(self.name, P4HeaderInstance)
+    if header_instance: header_instance.mark()
+
+def mark_used_P4UserBlackboxRefExpression(self, objects, types = None):
+    bbox_instance = objects.get_object(self.name, P4BlackboxInstance)
+    if bbox_instance: bbox_instance.mark()
 
 def mark_used_P4BlackboxInstance(self, objects, types = None):
-    self.mark()
+    for attr_name, attr_value in self.attributes:
+        attr_value.mark_used(objects)
 
     blackbox_type = objects.get_object(self.blackbox_type, P4BlackboxType)
     if blackbox_type:
-        blackbox_type.mark_used(objects, types)
+        blackbox_type.mark()
         
-        for attribute in self.attributes:
-            try:
-                # Get attribute type 
-                attribute_type = None
-                for member in blackbox_type.members:
-                    if member[0] == "attribute" and member[1] == attribute[0]:
-                        for member_prop in member[2]:
-                            if member_prop[0] == "type":
-                                attribute_type = member_prop[1]
-                                break
-                        break
-                
-                # If attribute is a reference to an object, follow it
-
-                obj_name = attribute[1].strip()
-                obj = None
-                if attribute_type.name == "field_list":
-                    obj = objects.get_object(obj_name, P4FieldList)
-                elif attribute_type.name == "parser":
-                    obj = objects.get_object(obj_name, P4Parser)
-                elif attribute_type.name == "parser_exception":
-                    obj = objects.get_object(obj_name, P4ParserException)
-                elif attribute_type.name == "action":
-                    obj = objects.get_object(obj_name, P4Action)
-                elif attribute_type.name == "table":
-                    obj = objects.get_object(obj_name, P4Table)
-                elif attribute_type.name == "control":
-                    obj = objects.get_object(obj_name, P4ControlFunction)
-                elif attribute_type.name == "header":
-                    obj = objects.get_object(obj_name, P4HeaderInstance)
-                elif attribute_type.name == "metadata":
-                    obj = objects.get_object(obj_name, P4HeaderInstance)
-                elif attribute_type.name == "blackbox":
-                    obj = objects.get_object(obj_name, P4BlackboxInstance)
-
-                if obj:
-                    obj.mark()
-                    obj.mark_used(objects, types)
-
-            except:
-                pass
-
 def mark_used_P4HeaderType(self, objects, types = None):
     pass
 
@@ -373,6 +372,10 @@ P4RefExpression.mark_used = mark_used_P4RefExpression
 P4String.mark_used = mark_used_P4String
 P4Integer.mark_used = mark_used_P4Integer
 P4Bool.mark_used = mark_used_P4Bool
+P4TypedRefExpression.mark_used = mark_used_P4TypedRefExpression
+P4UserHeaderRefExpression.mark_used = mark_used_P4UserHeaderRefExpression
+P4UserMetadataRefExpression.mark_used = mark_used_P4UserMetadataRefExpression
+P4UserBlackboxRefExpression.mark_used = mark_used_P4UserBlackboxRefExpression
 
 P4BoolBinaryExpression.mark_used = mark_used_P4BoolBinaryExpression
 P4BoolUnaryExpression.mark_used = mark_used_P4BoolUnaryExpression
@@ -431,5 +434,3 @@ def remove_unused_P4Program(self, objects):
         self.objects = new_objects
 
 P4Program.remove_unused = remove_unused_P4Program
-
-
