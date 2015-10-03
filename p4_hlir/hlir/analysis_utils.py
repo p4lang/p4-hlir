@@ -57,11 +57,17 @@ def get_all_subfields(field, field_set):
 
 def _retrieve_from_bbox_method(method, fields_write, fields_read):
 
+    def process_expression(expr, target):
+        if isinstance(expr, p4.p4_field):
+            get_all_subfields(expr, target)
+        elif isinstance(expr, p4.p4_expression):
+            process_expression(expr.left, target)
+            process_expression(expr.right, target)
+
     def add_attrs(attr_names, bbox_instance, target):
         for attr_name in attr_names:
             attr = bbox_instance.attributes[attr_name]
-            if not isinstance(attr, p4.p4_field): continue
-            get_all_subfields(attr, target)
+            process_expression(attr, target)
             
     access = method.access
     bbox_instance = method.parent
