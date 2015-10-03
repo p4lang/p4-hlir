@@ -711,9 +711,20 @@ def check_P4BlackboxType(self, symbols, header_fields, objects, types = None):
     pass
 
 def check_P4BlackboxInstance(self, symbols, header_fields, objects, types = None):
+    obj = objects.get_object(self.blackbox_type, P4BlackboxType)
+    # TODO: improve when each attribute is in AST
     for attr_name, attr_value in self.attributes:
+        symbols.enterscope()
+        for member in obj.members:
+            if member[0] != "attribute" or member[1] != attr_name:
+                continue
+            for prop in member[2]:
+                if prop[0] == "locals":
+                    for local in prop[1]:
+                        symbols.add_type(local, Types.local)
         attr_value.check(symbols, header_fields, objects,
                          types = {Types.field, Types.int_, Types.string_})
+        symbols.exitscope()
 
 def check_P4TypedRefExpression(self, symbols, header_fields, objects, types = None):
     type_ = Types.get_type(self.type_)
@@ -1285,11 +1296,14 @@ def check_P4ValidExpression(self, symbols, header_fields, objects, types = None)
     self.header_ref.check(symbols, header_fields, objects, {Types.header_instance})
 
 def check_P4BinaryExpression(self, symbols, header_fields, objects, types = None):
-    self.left.check(symbols, header_fields, objects, {Types.field, Types.int_})
-    self.right.check(symbols, header_fields, objects, {Types.field, Types.int_})
+    self.left.check(symbols, header_fields, objects,
+                    {Types.field, Types.int_, Types.local})
+    self.right.check(symbols, header_fields, objects,
+                     {Types.field, Types.int_, Types.local})
 
 def check_P4UnaryExpression(self, symbols, header_fields, objects, types = None):
-    self.right.check(symbols, header_fields, objects, {Types.field, Types.int_})
+    self.right.check(symbols, header_fields, objects,
+                     {Types.field, Types.int_, Types.local})
 
 
 def check_P4ParserException(self, symbols, header_fields, objects, types = None):

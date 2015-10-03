@@ -88,7 +88,7 @@ class p4_expression(object):
         else:
 
             if type(self.left) is p4_expression:
-                self.left.resolve_names (hlir)
+                self.left.resolve_names (hlir, local_vars)
             elif type(self.left) is str:
                 if self.left in local_vars:
                     self.left = local_vars[self.left]
@@ -102,7 +102,7 @@ class p4_expression(object):
                     # self.left = hlir._resolve_object(p4_headers.p4_field, self.left)
 
             if type(self.right) is p4_expression:
-                self.right.resolve_names (hlir)
+                self.right.resolve_names (hlir, local_vars)
             elif type(self.right) is str:
                 if self.right in local_vars:
                     self.right = local_vars[self.right]

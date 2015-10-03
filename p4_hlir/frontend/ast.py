@@ -41,6 +41,7 @@ class Types:
             blackbox_type,
             blackbox_instance,
             type_spec,
+            local,
         ) = range(type_count)
         except:
             type_count += 1
@@ -67,10 +68,12 @@ class Types:
         action_selector : "action_selector",
         control_function : "control function",
         int_ : "integer value",
+        string_ : "string value",
         parser_exception : "parser_exception",
         blackbox_type : "blackbox type",
         blackbox_instance : "blackbox instance",
-        type_spec : "type specification"
+        type_spec : "type specification",
+        local : "local variable",
     }
 
     @staticmethod
