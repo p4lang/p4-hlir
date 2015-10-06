@@ -18,6 +18,7 @@ from p4_hlir.main import HLIR
 import argparse
 import yaml
 import logging
+import json
 
 parser = argparse.ArgumentParser(description='P4 source code compiler')
 parser.add_argument('sources', metavar='source', type=str, nargs='+',
@@ -28,6 +29,9 @@ parser.add_argument("--hlir_name", help="Name for HLIR dump file",
                     type=str, action="store", default="hlir.yml")
 parser.add_argument('--verbose', '-v', action='count',
                     help='set verbosity level')
+parser.add_argument('--primitives', action='append', default = [],
+                    help="A JSON file which contains primitive declarations \
+                    (to be used in addition to the standard ones)")
 
 args = parser.parse_args()
 
@@ -36,6 +40,9 @@ if args.verbose > 0:
     logging.basicConfig(level=logging.DEBUG)
 
 h = HLIR(*args.sources)
+for primitive_f in args.primitives:
+    with open(primitive_f, 'r') as fp:
+        h.add_primitives(json.load(fp))
 h.build()
 
 if args.dump_hlir:
