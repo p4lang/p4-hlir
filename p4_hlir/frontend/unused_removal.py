@@ -47,29 +47,34 @@ def mark_used_P4Program(self, objects, types = None):
 
 def mark_used_P4BlackboxType(self, objects, types = None):
     for member in self.members:
-        if member[0] == "attribute":
-            for member_prop in member[2]:
-                if member_prop[0] == "type":
-                    attr_type = member_prop[1]
-                    obj = None
-                    if attr_type.name == "header" or attr_type.name == "metadata":
-                        obj = objects.get_object(attr_type.qualifiers["subtype"], P4HeaderType)
-                    elif attr_type.name == "blackbox":
-                        obj = objects.get_object(attr_type.qualifiers["subtype"], P4BlackboxType)
-                    if obj:
-                        obj.mark()
-                        obj.mark_used(objects, types)
-        elif member[0] == "method":
-            for arg in member[2]:
-                arg_type = arg[1]
-                obj = None
-                if arg_type.name == "header" or arg_type.name == "metadata":
-                    obj = objects.get_object(arg_type.qualifiers["subtype"], P4HeaderType)
-                elif arg_type.name == "blackbox":
-                    obj = objects.get_object(arg_type.qualifiers["subtype"], P4BlackboxType)
-                if obj:
-                    obj.mark()
-                    obj.mark_used(objects, types)
+        member.mark_used(objects)
+
+def mark_used_P4TypeSpec(self, objects, types = None):
+    if self.name == "header" or self.name == "metadata":
+        type_ = P4HeaderType
+        subtype = self.qualifiers["subtype"]
+    elif self.name == "blackbox":
+        type_ = P4BlackboxType
+        subtype = self.qualifiers["subtype"]
+    else:
+        return
+    obj = objects.get_object(subtype, type_)
+    obj.mark()
+
+def mark_used_P4BlackboxTypeAttributeProp(self, objects, types = None):
+    if self.name == "type":
+        assert(isinstance(self.value, P4TypeSpec))
+        self.value.mark_used(objects)
+
+def mark_used_P4BlackboxTypeAttribute(self, objects, types = None):
+    for prop in self.properties:
+        prop.mark_used(objects)
+
+def mark_used_P4BlackboxTypeMethod(self, objects, types = None):
+    for param in self.param_list:
+        # param is qualifier, type_spec, id
+        assert(isinstance(param[1], P4TypeSpec))
+        param[1].mark_used(objects)
 
 def mark_used_P4TypedRefExpression(self, objects, types = None):
     ast_type = get_ast_type(Types.get_type(self.type_))
@@ -89,12 +94,15 @@ def mark_used_P4UserBlackboxRefExpression(self, objects, types = None):
     if bbox_instance: bbox_instance.mark()
 
 def mark_used_P4BlackboxInstance(self, objects, types = None):
-    for attr_name, attr_value in self.attributes:
-        attr_value.mark_used(objects)
+    for attr in self.attributes:
+        attr.mark_used(objects)
 
     blackbox_type = objects.get_object(self.blackbox_type, P4BlackboxType)
     if blackbox_type:
         blackbox_type.mark()
+
+def mark_used_P4BlackboxInstanceAttribute(self, objects, types = None):
+    self.value.mark_used(objects)
         
 def mark_used_P4HeaderType(self, objects, types = None):
     pass
@@ -365,6 +373,8 @@ P4ActionProfile.mark_used = mark_used_P4ActionProfile
 P4ActionSelector.mark_used = mark_used_P4ActionSelector
 P4ControlFunction.mark_used = mark_used_P4ControlFunction
 
+P4TypeSpec.mark_used = mark_used_P4TypeSpec
+
 P4RefExpression.mark_used = mark_used_P4RefExpression
 P4FieldRefExpression.mark_used = mark_used_P4FieldRefExpression
 P4HeaderRefExpression.mark_used = mark_used_P4HeaderRefExpression
@@ -394,6 +404,12 @@ P4ParserParseError.mark_used = mark_used_P4ParserParseError
 P4CurrentExpression.mark_used = mark_used_P4CurrentExpression
 
 P4ActionCall.mark_used = mark_used_P4ActionCall
+
+P4BlackboxTypeAttribute.mark_used = mark_used_P4BlackboxTypeAttribute
+P4BlackboxTypeAttributeProp.mark_used = mark_used_P4BlackboxTypeAttributeProp
+P4BlackboxTypeMethod.mark_used = mark_used_P4BlackboxTypeMethod
+
+P4BlackboxInstanceAttribute.mark_used = mark_used_P4BlackboxInstanceAttribute
 
 P4BlackboxMethodCall.mark_used = mark_used_P4BlackboxMethodCall
 

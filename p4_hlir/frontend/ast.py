@@ -42,6 +42,7 @@ class Types:
             blackbox_instance,
             type_spec,
             local,
+            blackbox_attribute,
         ) = range(type_count)
         except:
             type_count += 1
@@ -74,6 +75,7 @@ class Types:
         blackbox_instance : "blackbox instance",
         type_spec : "type specification",
         local : "local variable",
+        blackbox_attribute : "blackbox attribute",
     }
 
     @staticmethod
@@ -421,6 +423,39 @@ class P4BlackboxType(P4NamedObject):
     def get_type_(self):
         return Types.blackbox_type
 
+class P4BlackboxTypeMember(P4TreeNode):
+    def __init__(self, filename, lineno):
+        super(P4BlackboxTypeMember, self).__init__(filename, lineno)
+        # reverse "pointer"
+        self._bbox_type = None
+
+class P4BlackboxTypeAttribute(P4BlackboxTypeMember):
+    def __init__(self, filename, lineno, name, properties):
+        super(P4BlackboxTypeAttribute, self).__init__(filename, lineno)
+        self.name = name
+        self.properties = properties
+
+class P4BlackboxTypeAttributeProp(P4TreeNode):
+    def __init__(self, filename, lineno, name, value):
+        super(P4BlackboxTypeAttributeProp, self).__init__(filename, lineno)
+        self.name = name
+        self.value = value
+        # reverse "pointer"
+        self._bbox_type_attr = None
+
+class P4BlackboxTypeMethod(P4BlackboxTypeMember):
+    def __init__(self, filename, lineno, name, param_list, attr_access):
+        super(P4BlackboxTypeMethod, self).__init__(filename, lineno)
+        self.name = name
+        self.param_list = param_list
+        self.attr_access = attr_access
+
+class P4BlackboxTypeMethodAccess(P4TreeNode):
+    def __init__(self, filename, lineno, type_, attrs):
+        super(P4BlackboxTypeMethodAccess, self).__init__(filename, lineno)
+        self.type_ = type_
+        self.attrs = attrs
+
 class P4BlackboxInstance(P4NamedObject):
     def __init__(self, filename, lineno, name, blackbox_type, attributes = []):
         super(P4BlackboxInstance, self).__init__(filename, lineno, name)
@@ -429,6 +464,14 @@ class P4BlackboxInstance(P4NamedObject):
 
     def get_type_(self):
         return Types.blackbox_instance
+
+class P4BlackboxInstanceAttribute(P4TreeNode):
+    def __init__(self, filename, lineno, name, value):
+        super(P4BlackboxInstanceAttribute, self).__init__(filename, lineno)
+        self.name = name
+        self.value = value
+        # reverse "pointer"
+        self._bbox_instance = None
 
 class P4BlackboxMethodCall(P4TreeNode):
     def __init__(self, filename, lineno, blackbox_instance, method, arg_list = []):
@@ -615,6 +658,7 @@ class P4Bool(P4Expression):
         super(P4Bool, self).__init__(filename, lineno)
         self.b = b
 
+# TODO: should this really inherit from P4NamedObject?
 class P4TypeSpec(P4NamedObject):
     def __init__(self, filename, lineno, name, qualifiers):
         super(P4TypeSpec, self).__init__(filename, lineno, name)

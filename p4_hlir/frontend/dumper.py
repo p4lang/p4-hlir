@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from ast import *
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 import json
 import os
 
@@ -101,6 +101,13 @@ class P4HlirDumper:
 
         P4BlackboxType.dump_to_p4 = dump_to_p4_P4BlackboxType
         P4BlackboxInstance.dump_to_p4 = dump_to_p4_P4BlackboxInstance
+
+        P4BlackboxTypeAttribute.dump_to_p4 = dump_to_p4_P4BlackboxTypeAttribute
+        P4BlackboxTypeAttributeProp.dump_to_p4 = dump_to_p4_P4BlackboxTypeAttributeProp
+        P4BlackboxTypeMethod.dump_to_p4 = dump_to_p4_P4BlackboxTypeMethod
+        P4BlackboxTypeMethodAccess.dump_to_p4 = dump_to_p4_P4BlackboxTypeMethodAccess
+
+        P4BlackboxInstanceAttribute.dump_to_p4 = dump_to_p4_P4BlackboxInstanceAttribute
 
         P4RefExpression.dump_to_p4 = dump_to_p4_P4RefExpression
         P4FieldRefExpression.dump_to_p4 = dump_to_p4_P4FieldRefExpression
@@ -733,17 +740,39 @@ def eval_P4UnaryExpression(self, hlir):
 def eval_P4Integer(self, hlir):
     return self.i
 
+# Usually I make sure that the signature is always the same, but is it so
+# important ...
+def dump_to_p4_P4BlackboxTypeAttribute(self, hlir, attributes, methods):
+    properties = [p.dump_to_p4(hlir) for p in self.properties]
+    attributes += [(self.name, properties)]
+
+def dump_to_p4_P4BlackboxTypeAttributeProp(self, hlir):
+    # TODO: avoid this switch
+    if isinstance(self.value, list):
+        value = [v.dump_to_p4(hlir) for v in self.value]
+    elif isinstance(self.value, P4TypeSpec):
+        # TODO: fix this
+        value = self.value
+    elif isinstance(self.value, bool):
+        value = self.value
+    else:
+        assert(0)
+    return (self.name, value)
+
+def dump_to_p4_P4BlackboxTypeMethod(self, hlir, attributes, methods):
+    access = defaultdict(set)
+    for a in self.attr_access:
+        a.dump_to_p4(hlir, access)
+    methods += [(self.name, self.param_list, access)]
+
+def dump_to_p4_P4BlackboxTypeMethodAccess(self, hlir, access):
+    access[self.type_].update(set([a.dump_to_p4(hlir) for a in self.attrs]))
+
 def dump_to_p4_P4BlackboxType(self, hlir):
     attributes = []
     methods = []
     for member in self.members:
-        if member[0] == "attribute":
-            attributes.append(member[1:])
-        elif member[0] == "method":
-            methods.append(member[1:])
-        else:
-            # TODO: catch it earlier
-            assert False, "Unrecognized blackbox member type %s" % str(member[0])
+        member.dump_to_p4(hlir, attributes, methods)
 
     g_bb_type = p4_blackbox_type(
         hlir,
@@ -756,9 +785,8 @@ def dump_to_p4_P4BlackboxType(self, hlir):
     g_bb_type._pragmas = self._pragmas.copy()
 
 def dump_to_p4_P4BlackboxInstance(self, hlir):
-    attributes = []
-    for attr_name, attr_value in self.attributes:
-        attributes.append( (attr_name, attr_value.dump_to_p4(hlir)) )
+    attributes = [attr.dump_to_p4(hlir) for attr in self.attributes]
+
     g_bb_inst = p4_blackbox_instance(
         hlir,
         self.name,
@@ -768,6 +796,9 @@ def dump_to_p4_P4BlackboxInstance(self, hlir):
         attributes = attributes
     )
     g_bb_inst._pragmas = self._pragmas.copy()
+
+def dump_to_p4_P4BlackboxInstanceAttribute(self, hlir):
+    return (self.name, self.value.dump_to_p4(hlir))
 
 def dump_to_p4_P4TypedRefExpression(self, hlir):
     return self.name

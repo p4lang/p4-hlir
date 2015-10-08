@@ -93,6 +93,8 @@ class P4SemanticChecker:
         P4ActionSelector.check = check_P4ActionSelector
         P4ControlFunction.check = check_P4ControlFunction
 
+        P4TypeSpec.check = check_P4TypeSpec
+
         P4RefExpression.check = check_P4RefExpression
         P4FieldRefExpression.check = check_P4FieldRefExpression
         P4HeaderRefExpression.check = check_P4HeaderRefExpression
@@ -122,6 +124,13 @@ class P4SemanticChecker:
         P4CurrentExpression.check = check_P4CurrentExpression
 
         P4ActionCall.check = check_P4ActionCall
+
+        P4BlackboxTypeAttribute.check = check_P4BlackboxTypeAttribute
+        P4BlackboxTypeAttributeProp.check = check_P4BlackboxTypeAttributeProp
+        P4BlackboxTypeMethod.check = check_P4BlackboxTypeMethod
+        P4BlackboxTypeMethodAccess.check = check_P4BlackboxTypeMethodAccess
+
+        P4BlackboxInstanceAttribute.check = check_P4BlackboxInstanceAttribute
 
         P4BlackboxMethodCall.check = check_P4BlackboxMethodCall
 
@@ -290,7 +299,7 @@ def get_types_set_str(types):
 def error_dup_objects(obj1, obj2):
     type_name = get_type_name(obj1)
     error_msg = "Redefinition of %s %s in file %s at line %d,"\
-                "previous definition was in file %s at line %d"\
+                " previous definition was in file %s at line %d"\
                 % (type_name, obj1.name, obj2.filename, obj2.lineno,
                    obj1.filename, obj1.lineno)
     P4TreeNode.print_error(error_msg)
@@ -679,10 +688,14 @@ def check_P4Program(self, symbols, header_fields, objects, types = None):
     symbols.enterscope()
     import_objects(self.objects, symbols, objects)
 
-    bbox_attribute_types = {}
-    self.find_bbox_attribute_types(bbox_attribute_types)
+    P4TreeNode.bbox_attribute_types = {}
+    self.find_bbox_attribute_types(P4TreeNode.bbox_attribute_types)
+    self.resolve_bbox_attributes(P4TreeNode.bbox_attribute_types)
+    if self.get_errors_cnt() != 0:
+        return
 
-    self.resolve_bbox_attributes(bbox_attribute_types)
+    P4TreeNode.bbox_attribute_locals = {}
+    self.find_bbox_attribute_locals(P4TreeNode.bbox_attribute_locals)
 
     for obj in self.objects:
         obj.check(symbols, header_fields, objects)
@@ -707,24 +720,68 @@ def check_P4Program(self, symbols, header_fields, objects, types = None):
         self.remove_unused(objects)
 
 def check_P4BlackboxType(self, symbols, header_fields, objects, types = None):
-    # TODO !!!
-    pass
+    for member in self.members:
+        member.check(symbols, header_fields, objects)
+
+def check_P4TypeSpec(self, symbols, header_fields, objects, types = None):
+    if self.name == "header" or self.name == "metadata":
+        type_ = Types.header_type
+        subtype = self.qualifiers["subtype"]
+    elif self.name == "blackbox":
+        type_ = Types.blackbox_type
+        subtype = self.qualifiers["subtype"]
+    else:
+        return
+    has_type = symbols.has_type(subtype, type_)
+    if has_type: return
+    error_msg = "Invalid reference to '%s' in file %s at line %d:"\
+                " no %s with that name'"\
+                % (subtype, self.filename, self.lineno, Types.get_name(type_))
+    P4TreeNode.print_error(error_msg)
+
+def check_P4BlackboxTypeAttributeProp(self, symbols, header_fields, objects, types = None):
+    if self.name == "type":
+        assert(isinstance(self.value, P4TypeSpec))
+        self.value.check(symbols, header_fields, objects)
+
+def check_P4BlackboxTypeAttribute(self, symbols, header_fields, objects, types = None):
+    for prop in self.properties:
+        prop.check(symbols, header_fields, objects)
+
+def check_P4BlackboxTypeMethod(self, symbols, header_fields, objects, types = None):
+    symbols.enterscope()
+    for attr_name in P4TreeNode.bbox_attribute_types[self._bbox_type.name]:
+        symbols.add_type(attr_name, Types.blackbox_attribute)
+    for attr_access in self.attr_access:
+        attr_access.check(symbols, header_fields, objects)
+    symbols.exitscope()
+    for param in self.param_list:
+        # param is qualifier, type_spec, id
+        assert(isinstance(param[1], P4TypeSpec))
+        param[1].check(symbols, header_fields, objects)
+
+def check_P4BlackboxTypeMethodAccess(self, symbols, header_fields, objects, types = None):
+    for attr in self.attrs:
+        attr.check(symbols, header_fields, objects,
+                   types = {Types.blackbox_attribute})
 
 def check_P4BlackboxInstance(self, symbols, header_fields, objects, types = None):
-    obj = objects.get_object(self.blackbox_type, P4BlackboxType)
-    # TODO: improve when each attribute is in AST
-    for attr_name, attr_value in self.attributes:
-        symbols.enterscope()
-        for member in obj.members:
-            if member[0] != "attribute" or member[1] != attr_name:
-                continue
-            for prop in member[2]:
-                if prop[0] == "locals":
-                    for local in prop[1]:
-                        symbols.add_type(local, Types.local)
-        attr_value.check(symbols, header_fields, objects,
-                         types = {Types.field, Types.int_, Types.string_})
-        symbols.exitscope()
+    # TODO: check that all non-optional attributes are defined here, not in HLIR
+    for attr in self.attributes:
+        attr._bbox_instance = self
+        attr.check(symbols, header_fields, objects)
+
+def check_P4BlackboxInstanceAttribute(self, symbols, header_fields, objects, types = None):
+    bbox_type = objects.get_object(self._bbox_instance.blackbox_type, P4BlackboxType)
+    assert(bbox_type is not None)
+    bbox_locals = P4TreeNode.bbox_attribute_locals[bbox_type.name]
+    my_locals = bbox_locals[self.name]
+    symbols.enterscope()
+    for local in my_locals:
+        symbols.add_type(local, Types.local)
+    self.value.check(symbols, header_fields, objects,
+                     types={Types.field, Types.int_, Types.string_})
+    symbols.exitscope()
 
 def check_P4TypedRefExpression(self, symbols, header_fields, objects, types = None):
     type_ = Types.get_type(self.type_)

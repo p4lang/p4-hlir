@@ -152,45 +152,28 @@ class p4_blackbox_type (p4_object):
         self.required_attributes = OrderedSet()
         attribute_dict = OrderedDict()
         for attribute in self.attributes:
-            if attribute[0] in attribute_dict:
-                raise p4_compiler_msg (
-                    "Blackbox attribute '"+str(attr)+"' defined multiple times within blackbox type.",
-                    self.filename, self.lineno
-                )
-            else:
-                attr = p4_blackbox_attribute(name=attribute[0], parent=self)
+            attr = p4_blackbox_attribute(name=attribute[0], parent=self)
 
-                specified_props = set()
-                for prop in attribute[1]:
-                    if prop[0] in specified_props:
-                        raise p4_compiler_msg (
-                            "Blackbox attribute '"+str(attr)+"' specifies property '"+prop[0]+"' multiple times within blackbox type.",
-                            self.filename, self.lineno
-                        )
-                    else:
-                        specified_props.add(prop[0])
-                        if prop[0] == "optional":
-                            attr.optional = True
-                        elif prop[0] == "type":
-                            # TODO: more formally represnt types
-                            attr.value_type = prop[1]
-                        elif prop[0] == "locals":
-                            attr.expr_locals = prop[1]
-                        else:
-                            raise p4_compiler_msg (
-                                "Blackbox attribute '"+str(attr)+"' specifies unknown property '"+prop[0]+"' within blackbox type.",
-                                self.filename, self.lineno
-                            )
-
-                if not attr.optional:
-                    self.required_attributes.add(attr.name)
-
-                if "type" not in specified_props:
+            specified_props = set()
+            for prop in attribute[1]:
+                specified_props.add(prop[0])
+                if prop[0] == "optional":
+                    attr.optional = True
+                elif prop[0] == "type":
+                    # TODO: more formally represnt types
+                    attr.value_type = prop[1]
+                elif prop[0] == "locals":
+                    attr.expr_locals = prop[1]
+                else:
                     raise p4_compiler_msg (
-                        "Blackbox attribute '"+str(attr)+"' does not have a specified type within blackbox type.",
+                        "Blackbox attribute '"+str(attr)+"' specifies unknown property '"+prop[0]+"' within blackbox type.",
                         self.filename, self.lineno
                     )
-                attribute_dict[attr.name] = attr
+
+            if not attr.optional:
+                self.required_attributes.add(attr.name)
+
+            attribute_dict[attr.name] = attr
         self.attributes = attribute_dict
 
         # Process methods
@@ -237,15 +220,8 @@ class p4_blackbox_instance (p4_object):
         self.methods = OrderedDict()
 
     def build (self, hlir):
-        if self.blackbox_type not in hlir.p4_blackbox_types:
-            raise p4_compiler_msg (
-                "Blackbox instance '%s' is of undeclared "
-                "type '%s'" % (self.name, self.blackbox_type),
-                self.filename, self.lineno
-            )
-        else:
-            self.blackbox_type = hlir.p4_blackbox_types[self.blackbox_type]
-            self.blackbox_type.instances[self.name] = self
+        self.blackbox_type = hlir.p4_blackbox_types[self.blackbox_type]
+        self.blackbox_type.instances[self.name] = self
 
         for method in self.blackbox_type.methods.values():
             self.methods[method.name] = p4_blackbox_method(
@@ -259,19 +235,6 @@ class p4_blackbox_instance (p4_object):
 
         processed_attributes = OrderedDict()
         for attr_name, attr_value in self.attributes:
-            if attr_name not in self.blackbox_type.attributes:
-                raise p4_compiler_msg (
-                    "Blackbox type '%s' does not contain an attribute "
-                    "named '%s'" % (self.blackbox_type.name, attr_name),
-                    self.filename, self.lineno
-                )
-            if attr_name in processed_attributes:
-                raise p4_compiler_msg (
-                    "Multiple declarations of attribute '%s' in blackbox "
-                    "instance '%s'" % (attr_name, self.name),
-                    self.filename, self.lineno
-                )
-
             processed_attributes[attr_name] = hlir._resolve_object(
                 self.blackbox_type.attributes[attr_name].value_type,
                 attr_value,
@@ -302,4 +265,3 @@ class p4_blackbox_instance (p4_object):
                 ),
                 self.filename, self.lineno
             )
-
