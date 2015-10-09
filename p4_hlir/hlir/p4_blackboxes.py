@@ -243,25 +243,11 @@ class p4_blackbox_instance (p4_object):
             )
 
             if isinstance(processed_attributes[attr_name], p4_expression):
-                try:
-                    local_vars = self.blackbox_type.attributes[attr_name].expr_locals
-                    local_vars = {var:var for var in local_vars}
-                    processed_attributes[attr_name].resolve_names(
-                        hlir,
-                        local_vars
-                    )
-                except p4_compiler_msg as p:
-                    p.filename = self.filename
-                    p.lineno = self.lineno
-                    raise
+                local_vars = self.blackbox_type.attributes[attr_name].expr_locals
+                local_vars = {var:var for var in local_vars}
+                processed_attributes[attr_name].resolve_names(
+                    hlir,
+                    local_vars
+                )
 
         self.attributes = processed_attributes
-
-        missing_attributes = self.blackbox_type.required_attributes - OrderedSet(self.attributes.keys())
-        if len(missing_attributes) != 0:
-            raise p4_compiler_msg (
-                "Blackbox instance '%s' is missing required attributes: %s" % (
-                    self.name, ", ".join("'%s'" % attr for attr in missing_attributes)
-                ),
-                self.filename, self.lineno
-            )

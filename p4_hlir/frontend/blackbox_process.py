@@ -15,10 +15,10 @@
 from ast import *
 from parser import P4Parser
 
-def find_bbox_attribute_types_P4TreeNode(self, bbox_attribute_types):
+def find_bbox_attribute_types_P4TreeNode(self, bbox_attribute_types, bbox_attribute_required):
     pass
 
-def find_bbox_attribute_types_P4BlackboxTypeAttribute(self, bbox_attribute_types):
+def find_bbox_attribute_types_P4BlackboxTypeAttribute(self, bbox_attribute_types, bbox_attribute_required):
     if self.name in bbox_attribute_types:
         error_msg = "Redefinition of blackbox attribute '%s'"\
                     " in file %s at line %d"\
@@ -45,21 +45,26 @@ def find_bbox_attribute_types_P4BlackboxTypeAttribute(self, bbox_attribute_types
 
     bbox_attribute_types[self.name] = properties["type"].value
 
-def find_bbox_attribute_types_P4BlackboxType(self, bbox_attribute_types):
+    if "optional" not in properties or properties["optional"].value != True:
+        bbox_attribute_required.add(self.name)
+
+def find_bbox_attribute_types_P4BlackboxType(self, bbox_attribute_types, bbox_attribute_required):
     assert(self.name not in bbox_attribute_types)
     bbox_attribute_types[self.name] = {}
+    bbox_attribute_required[self.name] = set()
     attr_types = bbox_attribute_types[self.name]
+    attr_required = bbox_attribute_required[self.name]
     for member in self.members:
-        member.find_bbox_attribute_types(attr_types)
+        member.find_bbox_attribute_types(attr_types, attr_required)
         member._bbox_type = self
 
 P4TreeNode.find_bbox_attribute_types = find_bbox_attribute_types_P4TreeNode
 P4BlackboxType.find_bbox_attribute_types = find_bbox_attribute_types_P4BlackboxType
 P4BlackboxTypeAttribute.find_bbox_attribute_types = find_bbox_attribute_types_P4BlackboxTypeAttribute
 
-def find_bbox_attribute_types_P4Program(self, bbox_attribute_types):
+def find_bbox_attribute_types_P4Program(self, bbox_attribute_types, bbox_attribute_required):
     for obj in self.objects:
-        obj.find_bbox_attribute_types(bbox_attribute_types)
+        obj.find_bbox_attribute_types(bbox_attribute_types, bbox_attribute_required)
 
 P4Program.find_bbox_attribute_types = find_bbox_attribute_types_P4Program
 

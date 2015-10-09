@@ -689,7 +689,9 @@ def check_P4Program(self, symbols, header_fields, objects, types = None):
     import_objects(self.objects, symbols, objects)
 
     P4TreeNode.bbox_attribute_types = {}
-    self.find_bbox_attribute_types(P4TreeNode.bbox_attribute_types)
+    P4TreeNode.bbox_attribute_required = {}
+    self.find_bbox_attribute_types(P4TreeNode.bbox_attribute_types,
+                                   P4TreeNode.bbox_attribute_required)
     self.resolve_bbox_attributes(P4TreeNode.bbox_attribute_types)
     if self.get_errors_cnt() != 0:
         return
@@ -766,10 +768,22 @@ def check_P4BlackboxTypeMethodAccess(self, symbols, header_fields, objects, type
                    types = {Types.blackbox_attribute})
 
 def check_P4BlackboxInstance(self, symbols, header_fields, objects, types = None):
-    # TODO: check that all non-optional attributes are defined here, not in HLIR
+    defined_attributes = set()
     for attr in self.attributes:
         attr._bbox_instance = self
         attr.check(symbols, header_fields, objects)
+        defined_attributes.add(attr.name)
+
+    bbox_type_name = self.blackbox_type
+    missing_attributes = P4TreeNode.bbox_attribute_required[bbox_type_name] -\
+                         defined_attributes
+    for attr in missing_attributes:
+        error_msg = "Error when declaring blackbox instance '%s'"\
+                    " in file %s at line %d: attribute '%s' is required"\
+                    " for blackbox instances of type '%s'"\
+                    % (self.name, self.filename, self.lineno,
+                       attr, bbox_type_name)
+        P4TreeNode.print_error(error_msg)
 
 def check_P4BlackboxInstanceAttribute(self, symbols, header_fields, objects, types = None):
     bbox_type = objects.get_object(self._bbox_instance.blackbox_type, P4BlackboxType)
