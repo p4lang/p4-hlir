@@ -1993,7 +1993,7 @@ class P4Parser:
                          "Invalid apply_table statement")
 
     def p_control_statement_6(self, p):
-        """ control_statement : blackbox_method_call SEMI
+        """ expression_statement : blackbox_method_call SEMI
         """
         p[0] = p[1]
 
@@ -2535,9 +2535,13 @@ class P4Parser:
     def p_blackbox_method_call_1(self, p):
         """ blackbox_method_call : ID PERIOD ID LPAREN arg_list RPAREN
         """
-        p[0] = P4BlackboxMethodCall(self.get_filename(), p.lineno(1), p[1], p[3], p[5])
+        p[0] = P4BlackboxMethodCall(self.get_filename(), p.lineno(1),
+                                    P4RefExpression(self.get_filename(), p.lineno(1), p[1]),
+                                    p[3], p[5])
 
     def p_blackbox_method_call_2(self, p):
         """ blackbox_method_call : ID PERIOD ID LPAREN RPAREN
         """
-        p[0] = P4BlackboxMethodCall(self.get_filename(), p.lineno(1), p[1], p[3], [])
+        p[0] = P4BlackboxMethodCall(self.get_filename(), p.lineno(1),
+                                    P4RefExpression(self.get_filename(), p.lineno(1), p[1]),
+                                    p[3], [])

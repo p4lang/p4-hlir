@@ -176,6 +176,8 @@ class P4SemanticChecker:
         P4Integer.check_action_typing = check_action_typing_P4Integer
         P4UnaryExpression.check_action_typing = check_action_typing_P4Integer
         P4BlackboxMethodCall.check_action_typing = check_action_typing_P4BlackboxMethodCall
+        P4ParserFunction.check_action_typing = check_action_typing_P4ParserFunction
+        P4ControlFunction.check_action_typing = check_action_typing_P4ControlFunction
 
         P4TreeNode.find_unused_args = find_unused_args_P4TreeNode
         P4Program.find_unused_args = find_unused_args_P4Program
@@ -375,8 +377,19 @@ def detect_recursion_P4BlackboxMethodCall(self, objects, action):
 def check_action_typing_P4Program(self, symbols, objects,
                                   trace = None):
     for obj in self.objects:
-        if type(obj) is not P4Table: continue
-        obj.check_action_typing(symbols, objects)
+        if isinstance(obj, P4Table) or isinstance(obj, P4ControlFunction) \
+           or isinstance(obj, P4ParserFunction):
+            obj.check_action_typing(symbols, objects)
+
+def check_action_typing_P4ParserFunction(self, symbols, objects, trace = None):
+    for statement in self.extract_and_set_statements:
+        if isinstance(statement, P4BlackboxMethodCall):
+            statement.check_action_typing(symbols, objects, trace = [self.name])
+
+def check_action_typing_P4ControlFunction(self, symbols, objects, trace = None):
+    for statement in self.statements:
+        if isinstance(statement, P4BlackboxMethodCall):
+            statement.check_action_typing(symbols, objects, trace = [self.name])
 
 def check_action_typing_P4Table(self, symbols, objects,
                                 trace = None):
@@ -456,8 +469,74 @@ def check_action_typing_P4ActionCall(self, symbols, objects,
 
 def check_action_typing_P4BlackboxMethodCall(self, symbols, objects,
                                              trace = None):
-    # Done in HLIR pass
-    pass
+    bbox_instance = objects.get_object(self.blackbox_instance.name, P4BlackboxInstance)
+    assert(bbox_instance is not None)
+    bbox_type = objects.get_object(bbox_instance.blackbox_type, P4BlackboxType)
+    assert(bbox_type is not None)
+    method = P4TreeNode.bbox_methods[bbox_type.name][self.method]
+    types = []
+    for arg in self.arg_list:
+        types += [arg.check_action_typing(symbols, objects, trace = trace)]
+
+    # funny name
+    def type_spec_to_type_set(type_spec):
+        type_ = type_spec.name
+        if type_ == "header":
+            subtype = attr_type_qualifiers["subtype"]
+            return {(Types.header_instance_regular, subtype)}
+        elif type_ == "metadata":
+            subtype = attr_type_qualifiers["subtype"]
+            return {(Types.header_instance_metadata, subtype)}
+        elif type_ == "blackbox":
+            subtype = attr_type_qualifiers["subtype"]
+            return {(Types.blackbox_instance, subtype)}
+        else:
+            type_map = {
+                "int" : {Types.int_},
+                "bit" : {Types.int_, Types.field},
+                "varbit" : {Types.int_, Types.field},
+                "field_list" : {Types.field_list},
+                "parser" : {Types.parser_function},
+                "action" : {Types.action_function, Types.primitive_action},
+                "table" : {Types.table},
+                "control" : {Types.control_function},
+                "counter" : {Types.counter},
+                "meter" : {Types.meter},
+                "register" : {Types.register},
+                "field_list_calculation" : {Types.field_list_calculation},
+                "parser_value_set" : {Types.value_set},
+            }
+            try:
+                return type_map[type_]
+            except:
+                assert(0)
+
+    parent_scope = symbols.popscope()
+    trace = trace + [method.name]
+    for idx, type_set in enumerate(types):
+        expected_type_spec = method.param_list[idx][1]
+        expected_type_set = type_spec_to_type_set(expected_type_spec)
+        if not (type_set & expected_type_set):
+            error_msg = "Error when calling blackbox method '%s' (%s)"\
+                        " in file %s at line %d:"\
+                        " argument %d has type %s, but formal '%s' has type %s"\
+                        % (method.name, get_trace_str(trace),
+                           self.filename, self.lineno,
+                           idx, get_types_set_str(type_set),
+                           method.param_list[idx][0],
+                           get_types_set_str(expected_type_set))
+            P4TreeNode.print_error(error_msg)
+            continue
+        elif len(type_set & expected_type_set) > 1:
+            error_msg = "Error when calling blackbox method '%s' (%s)"\
+                        " in file %s at line %d:"\
+                        " several candidates for argument %d, possible types are "\
+                        % (method.name, get_trace_str(trace),
+                           self.filename, self.lineno,
+                           idx, get_types_set_str(type_set))
+            P4TreeNode.print_error(error_msg)
+            continue
+    symbols.pushscope(parent_scope)
 
 def check_action_typing_P4FieldRefExpression(self, symbols, objects,
                                              trace = None):
@@ -690,8 +769,10 @@ def check_P4Program(self, symbols, header_fields, objects, types = None):
 
     P4TreeNode.bbox_attribute_types = {}
     P4TreeNode.bbox_attribute_required = {}
+    P4TreeNode.bbox_methods = {}
     self.find_bbox_attribute_types(P4TreeNode.bbox_attribute_types,
-                                   P4TreeNode.bbox_attribute_required)
+                                   P4TreeNode.bbox_attribute_required,
+                                   P4TreeNode.bbox_methods)
     self.resolve_bbox_attributes(P4TreeNode.bbox_attribute_types)
     if self.get_errors_cnt() != 0:
         return
@@ -758,9 +839,21 @@ def check_P4BlackboxTypeMethod(self, symbols, header_fields, objects, types = No
         attr_access.check(symbols, header_fields, objects)
     symbols.exitscope()
     for param in self.param_list:
-        # param is qualifier, type_spec, id
+        # param is name, type_spec, qualifiers
         assert(isinstance(param[1], P4TypeSpec))
         param[1].check(symbols, header_fields, objects)
+
+    has_optional = False
+    for param in self.param_list:
+        if "optional" in param[2]:
+            has_optional = True
+        elif has_optional:
+            error_msg = "Error when declaring method '%s'"\
+                        " for blackbox type '%s' in file %s at line %d:"\
+                        " all parameters following first optional parameter"\
+                        " must also be optional"\
+                        % (self.name, self._bbox_type.name,
+                           self.filename, self.lineno)
 
 def check_P4BlackboxTypeMethodAccess(self, symbols, header_fields, objects, types = None):
     for attr in self.attrs:
@@ -1084,7 +1177,49 @@ def check_P4ActionCall(self, symbols, header_fields, objects, types = None):
         )
 
 def check_P4BlackboxMethodCall(self, symbols, header_fields, objects, types = None):
-    pass
+    if not self.blackbox_instance.check(symbols, header_fields, objects,
+                                        {Types.blackbox_instance}):
+        return
+    bbox_instance = objects.get_object(self.blackbox_instance.name, P4BlackboxInstance)
+    assert(bbox_instance is not None)
+    bbox_type = objects.get_object(bbox_instance.blackbox_type, P4BlackboxType)
+    assert(bbox_type is not None)
+
+    if self.method not in P4TreeNode.bbox_methods[bbox_type.name]:
+        error_msg = "Invalid call to method '%s' on blackbox instance '%s'"\
+                    " in file %s at line %d:"\
+                    " this is not a valid method for blackbox type '%s'"\
+                    % (self.method, self.blackbox_instance.name,
+                       self.filename, self.lineno, bbox_type.name)
+        P4TreeNode.print_error(error_msg)
+        return
+    method = P4TreeNode.bbox_methods[bbox_type.name][self.method]
+
+    num_params = len(method.param_list)
+    num_args = len(self.arg_list)
+    required = num_params
+    for param in method.param_list:
+        if "optional" in param[2]:
+            required -= 1
+
+    if num_params == required and num_params != num_args:
+        error_msg = "Blackbox method '%s' expected %d arguments but got %d"\
+                    " in file %s at line %d"\
+                    % (self.method, num_params, num_args,
+                       self.filename, self.lineno)
+        P4TreeNode.print_error(error_msg)
+    elif num_args < required:
+        error_msg = "Blackbox method '%s' expected at least %d arguments but only got %d"\
+                    " in file %s at line %d"\
+                    % (self.method, num_params, num_args,
+                       self.filename, self.lineno)
+        P4TreeNode.print_error(error_msg)
+    elif num_args > num_params:
+        error_msg = "Blackbox method '%s' can only accept %d arguments but got %d"\
+                    " in file %s at line %d"\
+                    % (self.method, num_params, num_args,
+                       self.filename, self.lineno)
+        P4TreeNode.print_error(error_msg)
 
 def check_P4Table(self, symbols, header_fields, objects, types = None):
     if self.size is None and self.min_size is not None and self.max_size is not None:

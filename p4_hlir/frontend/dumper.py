@@ -453,7 +453,8 @@ def dump_to_p4_P4ActionCall(self, hlir):
 
 def dump_to_p4_P4BlackboxMethodCall(self, hlir):
     arg_list = [arg.dump_to_p4(hlir) for arg in self.arg_list]
-    return ("method", self.blackbox_instance, self.method, arg_list)
+    return ("method", self.blackbox_instance.dump_to_p4(hlir),
+            self.method, arg_list)
 
 def dump_to_p4_P4Table(self, hlir):
     match_fields = [read.dump_to_p4(hlir) for read in self.reads]

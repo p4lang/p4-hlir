@@ -176,10 +176,7 @@ def mark_used_P4ActionCall(self, objects, types = None):
         )
 
 def mark_used_P4BlackboxMethodCall(self, objects, types = None):
-    blackbox_inst = objects.get_object(self.blackbox_instance, P4BlackboxInstance)
-    if not blackbox_inst: return
-    blackbox_inst.mark()
-    blackbox_inst.mark_used(objects)
+    self.blackbox_instance.mark_used(objects, {P4BlackboxInstance})
 
     for arg in self.arg_list:
         arg.mark_used(

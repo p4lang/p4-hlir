@@ -55,52 +55,21 @@ class p4_blackbox_method (p4_action):
         self._pragmas = OrderedSet()
 
     def validate_arguments(self, hlir, args):
-        if self.required_params <= len(args) <= len(self.signature):
-            for arg_idx, arg in enumerate(args):
-                param_name = self.signature[arg_idx]
-                param_types = self.signature_flags[self.signature[arg_idx]]["type"]
+        for arg_idx, arg in enumerate(args):
+            param_name = self.signature[arg_idx]
+            param_types = self.signature_flags[self.signature[arg_idx]]["type"]
 
-                # Resolve argument, if it's a string
-                if type(arg) is str:
-                    arg = hlir._resolve_object(self.params[arg_idx][1], arg)
-                    args[arg_idx] = arg
-
-                # Confirm type
-                if type(arg) not in param_types:
-                    expected_type=", ".join(t.__name__ for t in param_types)
-                    if len(param_types) == 1:
-                        expected_type = "type "+expected_type
-                    else:
-                        expected_type = "one of types {"+expected_type+"}"
-                    raise p4_compiler_msg(
-                        "Incorrect type for method '%s' parameter '%s'  (got type %s, expected %s)" % (
-                            str(self), param_name, type(arg).__name__, expected_type
-                        )
-                    )
-        else:
-            if self.required_params == len(self.signature):
-                req_param_str = str(self.required_params)
-            else:
-                req_param_str = "between "+str(self.required_params)+" and "+str(len(self.signature))
-            raise p4_compiler_msg(
-                "Incorrect number of arguments passed to '"+str(self)+"' (got %i, expected %s)" % (len(call_args), req_param_str),
-            )
+            # Resolve argument, if it's a string
+            if type(arg) is str:
+                arg = hlir._resolve_object(self.params[arg_idx][1], arg)
+                args[arg_idx] = arg
 
     def build(self, hlir):
         self.required_params = len(self.params)
 
-        optional_params = False
         for param in self.params:
             if "optional" in param[2]:
-                optional_params = True
                 self.required_params -= 1
-            else:
-                if optional_params:
-                    raise p4_compiler_msg(
-                        "In method '%s', all parameters following first "
-                        "optional parameter must also be optional" % str(self),
-                        self.parent.filename, self.parent.lineno
-                    )
 
         for param in self.params:
             self.signature.append(param[0])
@@ -160,7 +129,7 @@ class p4_blackbox_type (p4_object):
                 if prop[0] == "optional":
                     attr.optional = True
                 elif prop[0] == "type":
-                    # TODO: more formally represnt types
+                    # TODO: more formally represent types
                     attr.value_type = prop[1]
                 elif prop[0] == "locals":
                     attr.expr_locals = prop[1]
@@ -179,17 +148,12 @@ class p4_blackbox_type (p4_object):
         # Process methods
         method_dict = OrderedDict()
         for method in self.methods:
-            if method[0] in method_dict:
-                raise p4_compiler_msg (
-                    "Blackbox method '"+str(attr)+"' defined multiple times within blackbox type.",
-                    self.filename, self.lineno
-                )
-            else:
-                new_method = p4_blackbox_method(hlir=hlir, name=method[0],
-                                                parent=self, params=method[1],
-                                                access=method[2])
+            new_method = p4_blackbox_method(hlir=hlir, name=method[0],
+                                            parent=self, params=method[1],
+                                            access=method[2])
 
-                method_dict[new_method.name] = new_method
+            method_dict[new_method.name] = new_method
+
         self.methods = method_dict
 
         self.instances = OrderedDict()

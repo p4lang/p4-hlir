@@ -80,7 +80,16 @@ class Types:
 
     @staticmethod
     def get_name(type_):
-        return Types.types_to_names[type_]
+        def get_one_type(t):
+            try:
+                return Types.types_to_names[t]
+            except:
+                assert(type(t) is str)
+                return t
+        try:
+            return " ".join([get_one_type(t) for t in type_])
+        except:
+            return get_one_type(type_)
 
     @staticmethod
     def get_type(type_name):

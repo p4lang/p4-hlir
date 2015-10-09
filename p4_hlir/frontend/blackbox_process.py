@@ -15,16 +15,33 @@
 from ast import *
 from parser import P4Parser
 
-def find_bbox_attribute_types_P4TreeNode(self, bbox_attribute_types, bbox_attribute_required):
+def find_bbox_attribute_types_P4TreeNode(
+        self, bbox_attribute_types, bbox_attribute_required, bbox_methods
+):
     pass
 
-def find_bbox_attribute_types_P4BlackboxTypeAttribute(self, bbox_attribute_types, bbox_attribute_required):
+def find_bbox_attribute_types_P4BlackboxTypeMethod(
+        self, bbox_attribute_types, bbox_attribute_required, bbox_methods
+):
+    if self.name in bbox_methods:
+        error_msg = "Redefinition of blackbox method '%s'"\
+                    " in file %s at line %d"\
+                    % (self.name, self.filename, self.lineno)
+        P4TreeNode.print_error(error_msg)
+        return
+
+    bbox_methods[self.name] = self
+
+def find_bbox_attribute_types_P4BlackboxTypeAttribute(
+        self, bbox_attribute_types, bbox_attribute_required, bbox_methods
+):
     if self.name in bbox_attribute_types:
         error_msg = "Redefinition of blackbox attribute '%s'"\
                     " in file %s at line %d"\
                     % (self.name, self.filename, self.lineno)
         P4TreeNode.print_error(error_msg)
         return
+
     properties = {}
     for prop in self.properties:
         if prop.name in properties:
@@ -48,23 +65,32 @@ def find_bbox_attribute_types_P4BlackboxTypeAttribute(self, bbox_attribute_types
     if "optional" not in properties or properties["optional"].value != True:
         bbox_attribute_required.add(self.name)
 
-def find_bbox_attribute_types_P4BlackboxType(self, bbox_attribute_types, bbox_attribute_required):
+def find_bbox_attribute_types_P4BlackboxType(
+        self, bbox_attribute_types, bbox_attribute_required, bbox_methods
+):
     assert(self.name not in bbox_attribute_types)
     bbox_attribute_types[self.name] = {}
     bbox_attribute_required[self.name] = set()
+    bbox_methods[self.name] = {}
     attr_types = bbox_attribute_types[self.name]
     attr_required = bbox_attribute_required[self.name]
+    methods = bbox_methods[self.name]
     for member in self.members:
-        member.find_bbox_attribute_types(attr_types, attr_required)
+        member.find_bbox_attribute_types(attr_types, attr_required, methods)
         member._bbox_type = self
 
 P4TreeNode.find_bbox_attribute_types = find_bbox_attribute_types_P4TreeNode
 P4BlackboxType.find_bbox_attribute_types = find_bbox_attribute_types_P4BlackboxType
 P4BlackboxTypeAttribute.find_bbox_attribute_types = find_bbox_attribute_types_P4BlackboxTypeAttribute
+P4BlackboxTypeMethod.find_bbox_attribute_types = find_bbox_attribute_types_P4BlackboxTypeMethod
 
-def find_bbox_attribute_types_P4Program(self, bbox_attribute_types, bbox_attribute_required):
+def find_bbox_attribute_types_P4Program(
+        self, bbox_attribute_types, bbox_attribute_required, bbox_methods
+):
     for obj in self.objects:
-        obj.find_bbox_attribute_types(bbox_attribute_types, bbox_attribute_required)
+        obj.find_bbox_attribute_types(
+            bbox_attribute_types, bbox_attribute_required, bbox_methods
+        )
 
 P4Program.find_bbox_attribute_types = find_bbox_attribute_types_P4Program
 
