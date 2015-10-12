@@ -234,6 +234,9 @@ class HLIR():
             obj = self.p4_fields[value]
             assert(obj)
             return obj
+        elif obj_type == "expression":
+            # local variable...
+            return value
         else:
             try:
                 return HLIR._type_map[obj_type].get_from_hlir(self, value)

@@ -886,8 +886,10 @@ def check_P4BlackboxInstanceAttribute(self, symbols, header_fields, objects, typ
     symbols.enterscope()
     for local in my_locals:
         symbols.add_type(local, Types.local)
-    self.value.check(symbols, header_fields, objects,
-                     types={Types.field, Types.int_, Types.string_})
+    self.value.check(
+        symbols, header_fields, objects,
+        types={Types.field, Types.int_, Types.string_, Types.local}
+    )
     symbols.exitscope()
 
 def check_P4TypedRefExpression(self, symbols, header_fields, objects, types = None):
