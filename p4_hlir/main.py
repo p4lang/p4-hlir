@@ -236,7 +236,7 @@ class HLIR():
             return obj
         else:
             try:
-                HLIR._type_map[obj_type].get_from_hlir(self, value)
+                return HLIR._type_map[obj_type].get_from_hlir(self, value)
             
             # TODO: remove when semantic checking complete
             except KeyError:
