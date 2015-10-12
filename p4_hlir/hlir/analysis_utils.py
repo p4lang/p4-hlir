@@ -66,6 +66,9 @@ def _retrieve_from_bbox_method(method, fields_write, fields_read):
 
     def add_attrs(attr_names, bbox_instance, target):
         for attr_name in attr_names:
+            if attr_name not in bbox_instance.attributes:
+                # must be an optional attribute
+                continue
             attr = bbox_instance.attributes[attr_name]
             process_expression(attr, target)
             

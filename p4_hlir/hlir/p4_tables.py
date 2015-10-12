@@ -107,6 +107,10 @@ class p4_table (p4_node):
 
         hlir.p4_tables[self.name] = self
 
+    @staticmethod
+    def get_from_hlir(hlir, name):
+        return hlir.p4_tables[name]
+
     def build_fields (self, hlir):
         for idx, match in enumerate(self.match_fields):
             match_field, match_type, match_mask = match
