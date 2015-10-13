@@ -332,51 +332,51 @@ class P4Parser:
         """
         p[0] = p[2]
 
-    def p_length_exp_1(self, p):
-        """ length_exp : length_exp PLUS length_exp
-                       | length_exp MINUS length_exp
-                       | length_exp TIMES length_exp
-                       | length_exp LSHIFT length_exp
-                       | length_exp RSHIFT length_exp
-        """
-        p[0] = P4BinaryExpression(self.get_filename(), p.lineno(1),
-                                  p[2], p[1], p[3])
-        # if p[2] == "+":
-        #     p[0] = P4PlusExpression(self.get_filename(), p.lineno(1),
-        #                             p[1], p[3])
-        # elif p[2] == "-":
-        #     p[0] = P4MinusExpression(self.get_filename(), p.lineno(1),
-        #                              p[1], p[3])
-        # elif p[2] == "*":
-        #     p[0] = P4TimesExpression(self.get_filename(), p.lineno(1),
-        #                              p[1], p[3])
-        # elif p[2] == "<<":
-        #     p[0] = P4LShiftExpression(self.get_filename(), p.lineno(1),
-        #                               p[1], p[3])
-        # elif p[2] == ">>":
-        #     p[0] = P4RShiftExpression(self.get_filename(), p.lineno(1),
-        #                               p[1], p[3])
-
-    def p_length_exp_2(self, p):
-        """ length_exp : LPAREN length_exp RPAREN
-        """
-        p[0] = p[2]
-
-    def p_length_exp_3(self, p):
-        """ length_exp : MINUS length_exp %prec UMINUS
-                       | PLUS length_exp %prec UMINUS
-        """
-        p[0] = P4UnaryExpression(self.get_filename(), p.lineno(1), p[1], p[2])
-
-    def p_length_exp_4(self, p):
-        """ length_exp : const_value
+    def p_length_exp(self, p):
+        """ length_exp : arith_exp
         """
         p[0] = p[1]
 
-    def p_length_exp_5(self, p):
-        """ length_exp : ID
+    def p_arith_exp_1(self, p):
+        """ arith_exp : arith_exp PLUS arith_exp
+                      | arith_exp MINUS arith_exp
+                      | arith_exp TIMES arith_exp
+                      | arith_exp LSHIFT arith_exp
+                      | arith_exp RSHIFT arith_exp
+                      | arith_exp AND arith_exp
+                      | arith_exp OR arith_exp
+                      | arith_exp XOR arith_exp
+
+        """
+        p[0] = P4BinaryExpression(self.get_filename(), p.lineno(1),
+                                  p[2], p[1], p[3])
+
+    def p_arith_exp_2(self, p):
+        """ arith_exp : LPAREN arith_exp RPAREN
+        """
+        p[0] = p[2]
+
+    def p_arith_exp_3(self, p):
+        """ arith_exp : NOT arith_exp
+                      | MINUS arith_exp %prec UMINUS
+                      | PLUS arith_exp %prec UMINUS
+        """
+        p[0] = P4UnaryExpression(self.get_filename(), p.lineno(1), p[1], p[2])
+
+    def p_arith_exp_4(self, p):
+        """ arith_exp : const_value
+        """
+        p[0] = p[1]
+
+    def p_arith_exp_5(self, p):
+        """ arith_exp : ID
         """
         p[0] = P4RefExpression(self.get_filename(), p.lineno(1), p[1])
+
+    def p_arith_exp_6(self, p):
+        """ arith_exp : field_ref
+        """
+        p[0] = p[1]
 
 
     # INSTANCE DECLARATION
@@ -928,22 +928,17 @@ class P4Parser:
 
 
     def p_metadata_expr_1(self, p):
-        """ metadata_expr : const_value
+        """ metadata_expr : arith_exp
         """
         p[0] = p[1]
 
     def p_metadata_expr_2(self, p):
-        """ metadata_expr : field_ref
-        """
-        p[0] = p[1]
-
-    def p_metadata_expr_3(self, p):
         """ metadata_expr : LATEST PERIOD ID
         """
         p[0] = P4FieldRefExpression(self.get_filename(), p.lineno(1),
                                     p[1], p[3])   # "latest" is header ref
 
-    def p_metadata_expr_4(self, p):
+    def p_metadata_expr_3(self, p):
         """ metadata_expr : CURRENT LPAREN const_value COMMA const_value
         """
         p[0] = P4CurrentExpression(self.get_filename(), p.lineno(1), p[3], p[5])

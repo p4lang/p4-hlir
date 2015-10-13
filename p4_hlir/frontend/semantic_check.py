@@ -154,7 +154,8 @@ class P4SemanticChecker:
         P4HeaderRefExpression.check_action_typing = check_action_typing_P4HeaderRefExpression
         P4RefExpression.check_action_typing = check_action_typing_P4RefExpression
         P4Integer.check_action_typing = check_action_typing_P4Integer
-        P4UnaryExpression.check_action_typing = check_action_typing_P4Integer
+        P4UnaryExpression.check_action_typing = check_action_typing_P4UnaryExpression
+        P4BinaryExpression.check_action_typing = check_action_typing_P4BinaryExpression
 
 
         P4TreeNode.find_unused_args = find_unused_args_P4TreeNode
@@ -162,6 +163,8 @@ class P4SemanticChecker:
         P4ActionFunction.find_unused_args = find_unused_args_P4ActionFunction
         P4ActionCall.find_unused_args = find_unused_args_P4ActionCall
         P4RefExpression.find_unused_args = find_unused_args_P4RefExpression
+        P4UnaryExpression.find_unused_args = find_unused_args_P4UnaryExpression
+        P4BinaryExpression.find_unused_args = find_unused_args_P4BinaryExpression
 
         P4TreeNode.remove_unused_args = remove_unused_args_P4TreeNode
         P4Program.remove_unused_args = remove_unused_args_P4Program
@@ -442,6 +445,10 @@ def check_action_typing_P4PrimitiveAction(self, symbols, objects,
                                           trace = None):
     assert(False)
 
+def check_action_typing_P4BinaryExpression(self, symbols, objects,
+                                           trace = None):
+    return {Types.int_}
+
 
 def find_unused_args_P4TreeNode(self, removed, used_args = None):
     pass
@@ -473,6 +480,13 @@ def find_unused_args_P4ActionCall(self, removed, used_args = None):
 
 def find_unused_args_P4RefExpression(self, removed, used_args = None):
     used_args.add(self.name)
+
+def find_unused_args_P4UnaryExpression(self, removed, used_args = None):
+    self.right.find_unused_args(removed, used_args)
+
+def find_unused_args_P4BinaryExpression(self, removed, used_args = None):
+    self.left.find_unused_args(removed, used_args)
+    self.right.find_unused_args(removed, used_args)
 
 def remove_unused_args_P4TreeNode(self, removed):
     pass

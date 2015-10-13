@@ -15,6 +15,7 @@
 from p4_core import *
 from p4_headers import p4_header_instance, P4_NEXT, p4_field_reference
 import p4_imperatives
+from p4_expressions import p4_expression
 
 from p4_hlir.util.OrderedSet import OrderedSet
 from collections import OrderedDict, defaultdict
@@ -165,7 +166,10 @@ class p4_parse_state (p4_object):
                         )
                     else:
                         metadata_value = p4_field_reference(hlir, metadata_value)
+                elif type(metadata_value) is p4_expression:
+                    metadata_value = metadata_value
                 else:
+                    print type(metadata_value)
                     assert(False)
 
                 self.call_sequence[idx] = (parse_call.set, metadata_field_ref, metadata_value)

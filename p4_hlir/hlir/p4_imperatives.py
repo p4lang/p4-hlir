@@ -198,15 +198,15 @@ class p4_action (p4_object):
                         if arg == p4_table_entry_data:
                             populated_arg = arg
                             break
+                    elif type(arg) is p4_expression:
+                        if param_type in {int, long}:
+                            populated_arg = arg
                     else:
                         try:
                             populated_arg = param_type.get_from_hlir(hlir, arg)
                         except Exception:
                             pass
 
-                # TODO: it doesn't appear line numbers are being reported, why?
-                # ... Antonin: I fixed it by replacing self.lineno by
-                # b_action.fileno
                 if populated_arg == None:
                     if arg == p4_table_entry_data:
                         arg_str = "table entry data from table '"+binding_action+"'"
