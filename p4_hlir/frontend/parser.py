@@ -2105,13 +2105,6 @@ class P4Parser:
 
 
     def p_general_exp(self, p):
-        """ general_exp : bool_exp
-                        | arith_exp
-                        | header_ref
-        """
-        p[0] = p[1]
-
-    def p_general_exp(self, p):
         """ general_exp : expression
         """
         p[0] = p[1]

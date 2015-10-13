@@ -1494,11 +1494,11 @@ def check_P4CurrentExpression(self, symbols, header_fields, objects, types = Non
     pass
 
 def check_P4BoolBinaryExpression(self, symbols, header_fields, objects, types = None):
-    self.left.check(symbols, header_fields, objects, {Types.bool_})
-    self.right.check(symbols, header_fields, objects, {Types.bool_})
+    self.left.check(symbols, header_fields, objects, {Types.bool_, Types.local})
+    self.right.check(symbols, header_fields, objects, {Types.bool_, Types.local})
 
 def check_P4BoolUnaryExpression(self, symbols, header_fields, objects, types = None):
-    self.right.check(symbols, header_fields, objects, {Types.bool_})
+    self.right.check(symbols, header_fields, objects, {Types.bool_, Types.local})
 
 def check_P4ValidExpression(self, symbols, header_fields, objects, types = None):
     self.header_ref.check(symbols, header_fields, objects, {Types.header_instance})

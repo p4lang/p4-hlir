@@ -69,6 +69,7 @@ class Types:
         action_selector : "action_selector",
         control_function : "control function",
         int_ : "integer value",
+        bool_ : "boolean value",
         string_ : "string value",
         parser_exception : "parser_exception",
         blackbox_type : "blackbox type",

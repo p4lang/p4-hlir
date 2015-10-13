@@ -114,10 +114,6 @@ def resolve_bbox_attribute(self, type_spec):
                         % (attr.filename, attr.lineno, attr.name)
             P4TreeNode.print_error(error_msg)
             return None
-        assert(isinstance(p4_objects, P4BinaryExpression) or\
-               isinstance(p4_objects, P4Integer) or\
-               isinstance(p4_objects, P4RefExpression) or\
-               isinstance(p4_objects, P4FieldRefExpression)) # really?
         return p4_objects
 
     def resolve_bitstring(attr):
