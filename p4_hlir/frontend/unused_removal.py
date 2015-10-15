@@ -155,6 +155,7 @@ def mark_used_P4ControlFunctionCall(self, objects, types = None):
     self.name.mark_used(objects, {P4ControlFunction})
 
 def mark_used_P4RefExpression(self, objects, types = None):
+    if not types: return
     for type_ in types:
         obj = objects.get_object(self.name, type_)
         if obj:

@@ -317,21 +317,6 @@ class P4Parser:
         value = (p[1] == "true")
         p[0] = P4Bool(self.get_filename(), p.lineno(1), value)
 
-    def p_field_value_1(self, p):
-        """ field_value : const_value
-        """
-        p[0] = p[1]
-
-    def p_field_value_2(self, p):
-        """ field_value : MINUS const_value
-        """
-        p[0] = P4UnaryExpression(self.get_filename, p.lineno(1), p[1], p[2])
-
-    def p_field_value_3(self, p):
-        """ field_value : PLUS const_value
-        """
-        p[0] = p[2]
-
     def p_length_exp(self, p):
         """ length_exp : arith_exp
         """
@@ -1503,18 +1488,8 @@ class P4Parser:
         """
         p[0] = p[1] + [p[3]]
 
-    def p_arg_1(self, p):
-        """ arg : header_ref
-        """
-        p[0] = p[1]
-
-    def p_arg_2(self, p):
-        """ arg : field_value
-        """
-        p[0] = p[1]
-
-    def p_arg_3(self, p):
-        """ arg : field_ref
+    def p_arg(self, p):
+        """ arg : general_exp
         """
         p[0] = p[1]
 
@@ -2023,6 +1998,85 @@ class P4Parser:
         """
         p[0] = p[2]
 
+    def p_general_exp(self, p):
+        """ general_exp : expression
+        """
+        p[0] = p[1]
+
+    def p_expression_1(self, p):
+        """ expression : expression LT expression 
+                       | expression GT expression
+                       | expression LE expression
+                       | expression GE expression
+                       | expression EQ expression
+                       | expression NE expression
+                       | expression PLUS expression
+                       | expression MINUS expression
+                       | expression TIMES expression
+                       | expression LSHIFT expression
+                       | expression RSHIFT expression
+                       | expression AND expression
+                       | expression OR expression
+                       | expression XOR expression
+        """
+        p[0] = P4BinaryExpression(self.get_filename(), p.lineno(1),
+                                  p[2], p[1], p[3])
+
+    def p_expression_2(self, p):
+        """ expression : expression LOR expression
+                       | expression LAND expression
+        """
+        p[0] = P4BoolBinaryExpression(self.get_filename(), p.lineno(1),
+                                      p[2], p[1], p[3])
+
+    def p_expression_3(self, p):
+        """ expression : LNOT expression
+        """
+        p[0] = P4BoolUnaryExpression(self.get_filename(), p.lineno(1),
+                                     p[1], p[2])
+
+    def p_expression_4(self, p):
+        """ expression : NOT expression
+                       | MINUS expression %prec UMINUS
+                       | PLUS expression %prec UMINUS
+        """
+        p[0] = P4UnaryExpression(self.get_filename(), p.lineno(1),
+                                 p[1], p[2])
+
+    def p_expression_5(self, p):
+        """ expression : LPAREN expression RPAREN
+        """
+        p[0] = p[2]
+
+    def p_expression_6(self, p):
+        """ expression : bool_value
+        """
+        p[0] = p[1]
+
+    def p_expression_7(self, p):
+        """ expression : VALID LPAREN header_ref RPAREN
+        """
+        p[0] = P4ValidExpression(self.get_filename(), p.lineno(1), p[3])
+
+    def p_expression_8(self, p):
+        """ expression : const_value
+        """
+        p[0] = p[1]
+
+    def p_expression_9(self, p):
+        """ expression : field_ref
+        """
+        p[0] = p[1]
+
+    def p_expression_10(self, p):
+        """ expression : ID
+        """
+        p[0] = P4RefExpression(self.get_filename(), p.lineno(1), p[1])
+
+    def p_expression_11(self, p):
+        """ expression : header_ref
+        """
+        p[0] = p[1]
 
     # PARSER EXCEPTIONS
 
