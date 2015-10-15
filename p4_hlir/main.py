@@ -235,6 +235,11 @@ class HLIR():
             assert(obj)
             return obj
         elif obj_type == "expression":
+            # could be a field
+            try:
+                return self.p4_fields[value]
+            except:
+                pass
             # local variable...
             return value
         else:

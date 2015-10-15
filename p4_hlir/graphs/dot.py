@@ -55,7 +55,6 @@ def dump_table(node, exit_node, visited=None):
                 label_str = " label=\"%s\"" % label
             else:
                 label_str = " label=\"%s\"" % label.name
-        print type(node)
         p += "   %s -> %s [arrowhead=%s%s];\n" % (get_call_name(node),
                                                 get_call_name(next_node, exit_node),
                                                 arrowhead, label_str)
