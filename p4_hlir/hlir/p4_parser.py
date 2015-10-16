@@ -168,6 +168,7 @@ class p4_parse_state (p4_object):
                         metadata_value = p4_field_reference(hlir, metadata_value)
                 elif type(metadata_value) is p4_expression:
                     metadata_value = metadata_value
+                    metadata_value.resolve_names(hlir)
                 else:
                     print type(metadata_value)
                     assert(False)

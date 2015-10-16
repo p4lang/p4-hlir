@@ -227,6 +227,7 @@ class p4_action (p4_object):
                     elif type(arg) is p4_expression:
                         if param_type in {int, long}:
                             populated_arg = arg
+                            populated_arg.resolve_names(hlir)
                     else:
                         try:
                             populated_arg = param_type.get_from_hlir(hlir, arg)
