@@ -136,9 +136,10 @@ class p4_action (p4_object):
 
                             def resolve_expression(arg):
                                 if isinstance(arg, p4_expression):
-                                    arg.left = resolve_expression(arg.left)
-                                    arg.right = resolve_expression(arg.right)
-                                    return arg
+                                    expr = p4_expression(op=arg.op)
+                                    expr.left = resolve_expression(arg.left)
+                                    expr.right = resolve_expression(arg.right)
+                                    return expr
                                 elif isinstance(arg, p4_signature_ref):
                                     return call_args[arg.idx]
                                 else:
