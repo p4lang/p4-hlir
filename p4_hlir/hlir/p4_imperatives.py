@@ -155,10 +155,11 @@ class p4_action (p4_object):
 
             for call in self.flat_call_sequence:
                 def resolve_expression(arg, arg_idx):
+                    allowable_types = call[0].signature_flags[call[0].signature[arg_idx]]["type"]
                     if isinstance(arg, p4_expression):
                         resolve_expression(arg.left, arg_idx)
                         resolve_expression(arg.right, arg_idx)
-                    elif isinstance(arg, p4_signature_ref):
+                    elif isinstance(arg, p4_signature_ref) and p4_table_entry_data in allowable_types:
                         data_width = call[0].signature_flags[call[0].signature[arg_idx]]["data_width"]
                         
                         if type(data_width) is str:
