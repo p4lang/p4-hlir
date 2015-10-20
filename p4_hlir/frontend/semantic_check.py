@@ -186,6 +186,7 @@ class P4SemanticChecker:
         P4RefExpression.find_unused_args = find_unused_args_P4RefExpression
         P4UnaryExpression.find_unused_args = find_unused_args_P4UnaryExpression
         P4BinaryExpression.find_unused_args = find_unused_args_P4BinaryExpression
+        P4BlackboxMethodCall.find_unused_args = find_unused_args_P4BlackboxMethodCall
 
         P4TreeNode.remove_unused_args = remove_unused_args_P4TreeNode
         P4Program.remove_unused_args = remove_unused_args_P4Program
@@ -604,6 +605,10 @@ def find_unused_args_P4UnaryExpression(self, removed, used_args = None):
 def find_unused_args_P4BinaryExpression(self, removed, used_args = None):
     self.left.find_unused_args(removed, used_args)
     self.right.find_unused_args(removed, used_args)
+
+def find_unused_args_P4BlackboxMethodCall(self, removed, used_args = None):
+    for arg in self.arg_list:
+        arg.find_unused_args(removed, used_args)
 
 def remove_unused_args_P4TreeNode(self, removed):
     pass

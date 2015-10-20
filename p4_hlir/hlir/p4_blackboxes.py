@@ -88,6 +88,8 @@ class p4_blackbox_method (p4_action):
             #       by the control plane - find a way to distinguish
             if param_type is p4_field or param_type is int:
                 flags["type"].add(p4_table_entry_data)
+                # TODO: refine this, depends on type!
+                flags["data_width"] = 32
 
             if "in" in param[2]:
                 flags["direction"] = P4_READ

@@ -222,6 +222,11 @@ class p4_action (p4_object):
                     b_action = hlir.p4_actions[binding_action]
                     filename = b_action.filename
                     lineno = b_action.lineno
+                # this case is broken because p4_blackbox_method has no
+                # filename / lineno attributes
+                elif isinstance(self, p4_blackboxes.p4_blackbox_method):
+                    filename = ""
+                    lineno = 0
                 else:
                     filename = self.filename
                     lineno = self.lineno
@@ -260,21 +265,6 @@ class p4_action (p4_object):
                         filename, lineno
                     )
                 else:
-
-                    if type(populated_arg) is p4_stateful.p4_counter:
-                        counter = populated_arg
-                        if counter.binding != None:
-                            if counter.binding[0] == p4_stateful.P4_DIRECT:
-                                raise p4_compiler_msg (
-                                    "Illegal reference to direct-mapped counter array '"+counter.name+"' in action '"+binding_action+"'",
-                                    filename, lineno
-                                )
-                            elif counter.binding[0] == p4_stateful.P4_STATIC and counter.binding[1] != calling_table:
-                                raise p4_compiler_msg (
-                                    "Illegal reference to counter array '"+counter.name+"' in action '"+binding_action+"' called by table '"+calling_table.name+"' (counter is statically mapped to table '"+counter.binding[1].name+"')",
-                                    filename, lineno
-                                )
-
                     # Replace the original argument value with the resolved
                     # object reference
                     if binding_call != None:
