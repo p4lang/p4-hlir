@@ -176,7 +176,7 @@ class p4_parse_state (p4_object):
 
                 self.call_sequence[idx] = (parse_call.set, metadata_field_ref, metadata_value)
             elif call_type == "method":
-                bbox = hlir.p4_blackbox_instances.get(call[1], None)
+                bbox = hlir.p4_extern_instances.get(call[1], None)
                 if bbox:
                     method_obj = bbox.methods.get(call[2], None)
                     if method_obj:
@@ -195,7 +195,7 @@ class p4_parse_state (p4_object):
                         )
                 else:
                     raise p4_compiler_msg(
-                        "Reference to undefined blackbox '%s'" % call[1],
+                        "Reference to undefined extern '%s'" % call[1],
                         self.filename, self.lineno
                     )
 

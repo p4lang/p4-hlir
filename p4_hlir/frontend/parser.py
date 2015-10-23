@@ -135,7 +135,7 @@ class P4Parser:
     def p_type_spec(self, p):
         """ type_spec : HEADER ID
                       | METADATA ID
-                      | BLACKBOX ID
+                      | EXTERN ID
                       | FIELD_LIST
                       | PARSER
                       | PARSER_EXCEPTION
@@ -154,7 +154,7 @@ class P4Parser:
                 qualifiers["subtype"] = p[2]
             elif type_name == "metadata":
                 qualifiers["subtype"] = p[2]
-            elif type_name == "blackbox":
+            elif type_name == "extern":
                 qualifiers["subtype"] = p[2]
             p[0] = P4TypeSpec(self.get_filename(), p.lineno(1), type_name, qualifiers)
 
@@ -950,7 +950,7 @@ class P4Parser:
     def p_extract_or_set_statement(self, p):
         """ extract_or_set_statement : extract_statement
                                      | set_statement
-                                     | blackbox_method_call
+                                     | extern_method_call
         """
         p[0] = p[1]
 
@@ -1571,7 +1571,7 @@ class P4Parser:
         )
 
     def p_action_satement_3(self, p):
-        """ action_statement : blackbox_method_call SEMI
+        """ action_statement : extern_method_call SEMI
         """
         p[0] = p[1]
 
@@ -1961,7 +1961,7 @@ class P4Parser:
                          "Invalid apply_table statement")
 
     def p_control_statement_6(self, p):
-        """ expression_statement : blackbox_method_call SEMI
+        """ expression_statement : extern_method_call SEMI
         """
         p[0] = p[1]
 
@@ -2275,42 +2275,42 @@ class P4Parser:
                 "Syntax error while parsing at token %s (%s)" % (p.value, p.type)
             )
 
-    # BLACKBOX TYPE DECLARATION
+    # EXTERN TYPE DECLARATION
 
     def p_p4_declaration_18(self, p):
-        """ p4_declaration : blackbox_type_declaration
+        """ p4_declaration : extern_type_declaration
         """
         p[0] = p[1]
 
-    def p_blackbox_type_declaration_1(self, p):
-        """ blackbox_type_declaration : BLACKBOX_TYPE blackbox_type_name SEMI
-                                      | BLACKBOX_TYPE blackbox_type_name LBRACE RBRACE
+    def p_extern_type_declaration_1(self, p):
+        """ extern_type_declaration : EXTERN_TYPE extern_type_name SEMI
+                                      | EXTERN_TYPE extern_type_name LBRACE RBRACE
         """
-        p[0] = P4BlackboxType(self.get_filename(), p.lineno(1), p[2])
+        p[0] = P4ExternType(self.get_filename(), p.lineno(1), p[2])
 
-    def p_blackbox_type_declaration_2(self, p):
-        """ blackbox_type_declaration : BLACKBOX_TYPE blackbox_type_name LBRACE \
-                                            blackbox_member_list \
+    def p_extern_type_declaration_2(self, p):
+        """ extern_type_declaration : EXTERN_TYPE extern_type_name LBRACE \
+                                            extern_member_list \
                                         RBRACE
         """
-        p[0] = P4BlackboxType(self.get_filename(), p.lineno(1), p[2], p[4])
+        p[0] = P4ExternType(self.get_filename(), p.lineno(1), p[2], p[4])
 
-    def p_blackbox_type_name(self, p):
-        """ blackbox_type_name : ID
+    def p_extern_type_name(self, p):
+        """ extern_type_name : ID
                                | COUNTER
                                | METER
                                | REGISTER
                                | ACTION_PROFILE
         """
-        # TODO: this production is here to allow blackbox definitions of
+        # TODO: this production is here to allow extern definitions of
         #       currently first-class P4 objects. once these first-class
         #       versions of counter/meter/etc. are removed from the grammar,
         #       all occurences of this production can just be replaced with
         #       ID
         p[0] = p[1]
 
-    def p_blackbox_attribute_name(self, p):
-        """ blackbox_attribute_name : ID
+    def p_extern_attribute_name(self, p):
+        """ extern_attribute_name : ID
                                     | DIRECT
                                     | STATIC
                                     | INSTANCE_COUNT
@@ -2326,54 +2326,54 @@ class P4Parser:
                                     | SIZE
                                     | DYNAMIC_ACTION_SELECTION
         """
-        # TODO: this production is here to allow blackbox definitions of
+        # TODO: this production is here to allow extern definitions of
         #       currently first-class P4 objects. once these first-class
         #       versions of counter/meter/etc. are removed from the grammar,
         #       all occurences of this production can just be replaced with
         #       ID
         p[0] = p[1]
 
-    def p_blackbox_member_list(self, p):
-        """ blackbox_member_list : blackbox_member_list blackbox_member
-                                 | blackbox_member
+    def p_extern_member_list(self, p):
+        """ extern_member_list : extern_member_list extern_member
+                                 | extern_member
         """
         if len(p) > 2:
             p[0] = p[1] + [p[2]]
         else:
             p[0] = [p[1]]
 
-    def p_blackbox_member_1(self, p):
-        """ blackbox_member : ATTRIBUTE blackbox_attribute_name LBRACE \
-                                blackbox_attribute_property_list \
+    def p_extern_member_1(self, p):
+        """ extern_member : ATTRIBUTE extern_attribute_name LBRACE \
+                                extern_attribute_property_list \
                               RBRACE
 
         """
-        p[0] = P4BlackboxTypeAttribute(self.get_filename(), p.lineno(1),
+        p[0] = P4ExternTypeAttribute(self.get_filename(), p.lineno(1),
                                        p[2], p[4])
 
-    def p_blackbox_member_2(self, p):
-        """ blackbox_member : METHOD ID LPAREN parameter_list RPAREN SEMI
+    def p_extern_member_2(self, p):
+        """ extern_member : METHOD ID LPAREN parameter_list RPAREN SEMI
                             | METHOD ID LPAREN RPAREN SEMI
         """
         if len(p) <= 6 :
-            p[0] = P4BlackboxTypeMethod(self.get_filename(), p.lineno(1),
+            p[0] = P4ExternTypeMethod(self.get_filename(), p.lineno(1),
                                         p[2], [], [])
         else:
-            p[0] = P4BlackboxTypeMethod(self.get_filename(), p.lineno(1),
+            p[0] = P4ExternTypeMethod(self.get_filename(), p.lineno(1),
                                         p[2], p[4], [])
 
-    def p_blackbox_member_3(self, p):
-        """ blackbox_member : METHOD ID LPAREN parameter_list RPAREN LBRACE method_body RBRACE
+    def p_extern_member_3(self, p):
+        """ extern_member : METHOD ID LPAREN parameter_list RPAREN LBRACE method_body RBRACE
                             | METHOD ID LPAREN RPAREN LBRACE method_body RBRACE
         """
         if len(p) <= 8 :
-            p[0] = P4BlackboxTypeMethod(self.get_filename(), p.lineno(1),
+            p[0] = P4ExternTypeMethod(self.get_filename(), p.lineno(1),
                                         p[2], [], p[6])
         else:
-            p[0] = P4BlackboxTypeMethod(self.get_filename(), p.lineno(1),
+            p[0] = P4ExternTypeMethod(self.get_filename(), p.lineno(1),
                                         p[2], p[4], p[7])
 
-    def p_blackbox_method_body(self, p):
+    def p_extern_method_body(self, p):
         """ method_body : method_access_list
         """
         p[0] = p[1]
@@ -2391,13 +2391,13 @@ class P4Parser:
     def p_method_access_1(self, p):
         """ method_access : method_access_type LBRACE identifier_list RBRACE
         """
-        p[0] = P4BlackboxTypeMethodAccess(self.get_filename(), p.lineno(1),
+        p[0] = P4ExternTypeMethodAccess(self.get_filename(), p.lineno(1),
                                           p[1], p[3])
 
     def p_method_access_2(self, p):
         """ method_access : method_access_type LBRACE RBRACE
         """
-        p[0] = P4BlackboxTypeMethodAccess(self.get_filename(), p.lineno(1),
+        p[0] = P4ExternTypeMethodAccess(self.get_filename(), p.lineno(1),
                                           p[1], [])
 
     def p_method_access_type(self, p):
@@ -2406,23 +2406,23 @@ class P4Parser:
         """
         p[0] = p[1]
 
-    def p_blackbox_attribute_property_list(self, p):
-        """ blackbox_attribute_property_list : blackbox_attribute_property_list blackbox_attribute_property
-                                             | blackbox_attribute_property
+    def p_extern_attribute_property_list(self, p):
+        """ extern_attribute_property_list : extern_attribute_property_list extern_attribute_property
+                                             | extern_attribute_property
         """
         if len(p) > 2:
             p[0] = p[1] + [p[2]]
         else:
             p[0] = [p[1]]
 
-    def p_blackbox_attribute_property_1(self, p):
-        """ blackbox_attribute_property : OPTIONAL SEMI
+    def p_extern_attribute_property_1(self, p):
+        """ extern_attribute_property : OPTIONAL SEMI
         """
-        p[0] = P4BlackboxTypeAttributeProp(self.get_filename(), p.lineno(1),
+        p[0] = P4ExternTypeAttributeProp(self.get_filename(), p.lineno(1),
                                            "optional", True)
 
-    def p_blackbox_attribute_property_2(self, p):
-        """ blackbox_attribute_property : TYPE COLON type_spec SEMI
+    def p_extern_attribute_property_2(self, p):
+        """ extern_attribute_property : TYPE COLON type_spec SEMI
                                         | TYPE COLON STRING SEMI
                                         | TYPE COLON EXPRESSION SEMI
                                         | TYPE COLON BLOCK SEMI
@@ -2431,14 +2431,14 @@ class P4Parser:
             tspec = p[3]
         else:
             tspec = P4TypeSpec(self.get_filename(), p.lineno(1), p[3], {})
-        p[0] = P4BlackboxTypeAttributeProp(self.get_filename(), p.lineno(1),
+        p[0] = P4ExternTypeAttributeProp(self.get_filename(), p.lineno(1),
                                            "type", tspec)
 
-    def p_blackbox_attribute_property_3(self, p):
-        """ blackbox_attribute_property : EXPRESSION_LOCAL_VARIABLES \
+    def p_extern_attribute_property_3(self, p):
+        """ extern_attribute_property : EXPRESSION_LOCAL_VARIABLES \
                                           LBRACE identifier_list RBRACE
         """
-        p[0] = P4BlackboxTypeAttributeProp(self.get_filename(), p.lineno(1),
+        p[0] = P4ExternTypeAttributeProp(self.get_filename(), p.lineno(1),
                                            "locals", p[3])
 
     def p_identifier_list(self, p):
@@ -2450,59 +2450,59 @@ class P4Parser:
         else:
             p[0] = [P4RefExpression(self.get_filename(), p.lineno(1), p[1])]
 
-    # BLACKBOX INSTANCE DECLARATION
+    # EXTERN INSTANCE DECLARATION
 
     def p_p4_declaration_19(self, p):
-        """ p4_declaration : blackbox_instance_declaration
+        """ p4_declaration : extern_instance_declaration
         """
         p[0] = p[1]
 
-    def p_blackbox_instance_declaration_1(self, p):
-        """ blackbox_instance_declaration : BLACKBOX blackbox_type_name ID SEMI
+    def p_extern_instance_declaration_1(self, p):
+        """ extern_instance_declaration : EXTERN extern_type_name ID SEMI
         """
-        p[0] = P4BlackboxInstance(self.get_filename(), p.lineno(1), p[3], p[2])
+        p[0] = P4ExternInstance(self.get_filename(), p.lineno(1), p[3], p[2])
 
-    def p_blackbox_instance_declaration_2(self, p):
-        """ blackbox_instance_declaration : BLACKBOX blackbox_type_name ID LBRACE \
-                                                blackbox_instance_attribute_list \
+    def p_extern_instance_declaration_2(self, p):
+        """ extern_instance_declaration : EXTERN extern_type_name ID LBRACE \
+                                                extern_instance_attribute_list \
                                             RBRACE
         """
-        p[0] = P4BlackboxInstance(self.get_filename(), p.lineno(1), p[3], p[2], p[5])
+        p[0] = P4ExternInstance(self.get_filename(), p.lineno(1), p[3], p[2], p[5])
 
-    def p_blackbox_instance_attribute_list (self, p):
-        """ blackbox_instance_attribute_list : blackbox_instance_attribute_list blackbox_instance_attribute
-                                             | blackbox_instance_attribute
+    def p_extern_instance_attribute_list (self, p):
+        """ extern_instance_attribute_list : extern_instance_attribute_list extern_instance_attribute
+                                             | extern_instance_attribute
         """
         if len(p) > 2:
             p[0] = p[1] + [p[2]]
         else:
             p[0] = [p[1]]
 
-    def p_blackbox_instance_attribute_2 (self, p):
-        """ blackbox_instance_attribute : SINGLE_LINE_ATTR
+    def p_extern_instance_attribute_2 (self, p):
+        """ extern_instance_attribute : SINGLE_LINE_ATTR
         """
-        p[0] = P4BlackboxInstanceAttribute(self.get_filename(), p.lineno(1), *p[1])
+        p[0] = P4ExternInstanceAttribute(self.get_filename(), p.lineno(1), *p[1])
 
-    def p_blackbox_instance_attribute_3 (self, p):
-        """ blackbox_instance_attribute : MULTI_LINE_ATTR
+    def p_extern_instance_attribute_3 (self, p):
+        """ extern_instance_attribute : MULTI_LINE_ATTR
         """
-        p[0] = P4BlackboxInstanceAttribute(self.get_filename(), p.lineno(1), *p[1])
+        p[0] = P4ExternInstanceAttribute(self.get_filename(), p.lineno(1), *p[1])
 
-    def p_blackbox_instance_attribute_4 (self, p):
-        """ blackbox_instance_attribute : ID
+    def p_extern_instance_attribute_4 (self, p):
+        """ extern_instance_attribute : ID
         """
-        p[0] = P4BlackboxInstanceAttribute(self.get_filename(), p.lineno(1), p[1], None)
+        p[0] = P4ExternInstanceAttribute(self.get_filename(), p.lineno(1), p[1], None)
 
-    def p_blackbox_method_call_1(self, p):
-        """ blackbox_method_call : ID PERIOD ID LPAREN arg_list RPAREN
+    def p_extern_method_call_1(self, p):
+        """ extern_method_call : ID PERIOD ID LPAREN arg_list RPAREN
         """
-        p[0] = P4BlackboxMethodCall(self.get_filename(), p.lineno(1),
+        p[0] = P4ExternMethodCall(self.get_filename(), p.lineno(1),
                                     P4RefExpression(self.get_filename(), p.lineno(1), p[1]),
                                     p[3], p[5])
 
-    def p_blackbox_method_call_2(self, p):
-        """ blackbox_method_call : ID PERIOD ID LPAREN RPAREN
+    def p_extern_method_call_2(self, p):
+        """ extern_method_call : ID PERIOD ID LPAREN RPAREN
         """
-        p[0] = P4BlackboxMethodCall(self.get_filename(), p.lineno(1),
+        p[0] = P4ExternMethodCall(self.get_filename(), p.lineno(1),
                                     P4RefExpression(self.get_filename(), p.lineno(1), p[1]),
                                     p[3], [])

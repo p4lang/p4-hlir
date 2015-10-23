@@ -34,8 +34,8 @@ def get_ast_type(type_):
         Types.action_selector : P4ActionSelector,
         Types.control_function : P4ControlFunction,
         Types.parser_exception : P4ParserException,
-        Types.blackbox_type : P4BlackboxType,
-        Types.blackbox_instance : P4BlackboxInstance,
+        Types.extern_type : P4ExternType,
+        Types.extern_instance : P4ExternInstance,
         Types.type_spec : P4TypeSpec,
     }
 
@@ -45,7 +45,7 @@ def mark_used_P4Program(self, objects, types = None):
     for obj in self.objects:
         obj.mark_used(objects)
 
-def mark_used_P4BlackboxType(self, objects, types = None):
+def mark_used_P4ExternType(self, objects, types = None):
     for member in self.members:
         member.mark_used(objects)
 
@@ -53,24 +53,24 @@ def mark_used_P4TypeSpec(self, objects, types = None):
     if self.name == "header" or self.name == "metadata":
         type_ = P4HeaderType
         subtype = self.qualifiers["subtype"]
-    elif self.name == "blackbox":
-        type_ = P4BlackboxType
+    elif self.name == "extern":
+        type_ = P4ExternType
         subtype = self.qualifiers["subtype"]
     else:
         return
     obj = objects.get_object(subtype, type_)
     obj.mark()
 
-def mark_used_P4BlackboxTypeAttributeProp(self, objects, types = None):
+def mark_used_P4ExternTypeAttributeProp(self, objects, types = None):
     if self.name == "type":
         assert(isinstance(self.value, P4TypeSpec))
         self.value.mark_used(objects)
 
-def mark_used_P4BlackboxTypeAttribute(self, objects, types = None):
+def mark_used_P4ExternTypeAttribute(self, objects, types = None):
     for prop in self.properties:
         prop.mark_used(objects)
 
-def mark_used_P4BlackboxTypeMethod(self, objects, types = None):
+def mark_used_P4ExternTypeMethod(self, objects, types = None):
     for param in self.param_list:
         # param is qualifier, type_spec, id
         assert(isinstance(param[1], P4TypeSpec))
@@ -89,19 +89,19 @@ def mark_used_P4UserMetadataRefExpression(self, objects, types = None):
     header_instance = objects.get_object(self.name, P4HeaderInstance)
     if header_instance: header_instance.mark()
 
-def mark_used_P4UserBlackboxRefExpression(self, objects, types = None):
-    bbox_instance = objects.get_object(self.name, P4BlackboxInstance)
+def mark_used_P4UserExternRefExpression(self, objects, types = None):
+    bbox_instance = objects.get_object(self.name, P4ExternInstance)
     if bbox_instance: bbox_instance.mark()
 
-def mark_used_P4BlackboxInstance(self, objects, types = None):
+def mark_used_P4ExternInstance(self, objects, types = None):
     for attr in self.attributes:
         attr.mark_used(objects)
 
-    blackbox_type = objects.get_object(self.blackbox_type, P4BlackboxType)
-    if blackbox_type:
-        blackbox_type.mark()
+    extern_type = objects.get_object(self.extern_type, P4ExternType)
+    if extern_type:
+        extern_type.mark()
 
-def mark_used_P4BlackboxInstanceAttribute(self, objects, types = None):
+def mark_used_P4ExternInstanceAttribute(self, objects, types = None):
     self.value.mark_used(objects)
         
 def mark_used_P4HeaderType(self, objects, types = None):
@@ -175,8 +175,8 @@ def mark_used_P4ActionCall(self, objects, types = None):
              P4Meter, P4Register}
         )
 
-def mark_used_P4BlackboxMethodCall(self, objects, types = None):
-    self.blackbox_instance.mark_used(objects, {P4BlackboxInstance})
+def mark_used_P4ExternMethodCall(self, objects, types = None):
+    self.extern_instance.mark_used(objects, {P4ExternInstance})
 
     for arg in self.arg_list:
         arg.mark_used(
@@ -351,8 +351,8 @@ def mark_used_P4ParserExceptionReturn(self, objects, types = None):
 
 
 P4Program.mark_used = mark_used_P4Program
-P4BlackboxType.mark_used = mark_used_P4BlackboxType
-P4BlackboxInstance.mark_used = mark_used_P4BlackboxInstance
+P4ExternType.mark_used = mark_used_P4ExternType
+P4ExternInstance.mark_used = mark_used_P4ExternInstance
 P4HeaderType.mark_used = mark_used_P4HeaderType
 P4HeaderInstance.mark_used = mark_used_P4HeaderInstance
 P4FieldList.mark_used = mark_used_P4FieldList
@@ -382,7 +382,7 @@ P4Bool.mark_used = mark_used_P4Bool
 P4TypedRefExpression.mark_used = mark_used_P4TypedRefExpression
 P4UserHeaderRefExpression.mark_used = mark_used_P4UserHeaderRefExpression
 P4UserMetadataRefExpression.mark_used = mark_used_P4UserMetadataRefExpression
-P4UserBlackboxRefExpression.mark_used = mark_used_P4UserBlackboxRefExpression
+P4UserExternRefExpression.mark_used = mark_used_P4UserExternRefExpression
 
 P4BoolBinaryExpression.mark_used = mark_used_P4BoolBinaryExpression
 P4BoolUnaryExpression.mark_used = mark_used_P4BoolUnaryExpression
@@ -402,13 +402,13 @@ P4CurrentExpression.mark_used = mark_used_P4CurrentExpression
 
 P4ActionCall.mark_used = mark_used_P4ActionCall
 
-P4BlackboxTypeAttribute.mark_used = mark_used_P4BlackboxTypeAttribute
-P4BlackboxTypeAttributeProp.mark_used = mark_used_P4BlackboxTypeAttributeProp
-P4BlackboxTypeMethod.mark_used = mark_used_P4BlackboxTypeMethod
+P4ExternTypeAttribute.mark_used = mark_used_P4ExternTypeAttribute
+P4ExternTypeAttributeProp.mark_used = mark_used_P4ExternTypeAttributeProp
+P4ExternTypeMethod.mark_used = mark_used_P4ExternTypeMethod
 
-P4BlackboxInstanceAttribute.mark_used = mark_used_P4BlackboxInstanceAttribute
+P4ExternInstanceAttribute.mark_used = mark_used_P4ExternInstanceAttribute
 
-P4BlackboxMethodCall.mark_used = mark_used_P4BlackboxMethodCall
+P4ExternMethodCall.mark_used = mark_used_P4ExternMethodCall
 
 P4TableFieldMatch.mark_used = mark_used_P4TableFieldMatch
 

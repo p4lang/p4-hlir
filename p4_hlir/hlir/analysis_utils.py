@@ -91,7 +91,7 @@ def retrieve_from_one_action(action):
     action_fields = set()
     for call in action.flat_call_sequence:
         primitive = call[0]
-        if isinstance(primitive, p4.p4_blackbox_method):
+        if isinstance(primitive, p4.p4_extern_method):
             _retrieve_from_bbox_method(primitive, 
                                        action_fields_write, action_fields_read)
         args = call[1]

@@ -57,8 +57,8 @@ class P4Lexer:
         'SIGNED', 'SATURATING',
         'FIELDS', 'LENGTH', 'MAX_LENGTH',
         'IN', 'OUT', 'INOUT', 'OPTIONAL',
-        'BLACKBOX_TYPE',
-        'BLACKBOX',
+        'EXTERN_TYPE',
+        'EXTERN',
         'ATTRIBUTE','EXPRESSION_LOCAL_VARIABLES',
         'STRING', 'EXPRESSION', 'BLOCK',
         'METHOD',
@@ -196,8 +196,8 @@ class P4Lexer:
     string_char = r"""([^"\\\n]|"""+escape_sequence+')'
     string_literal = '"'+string_char+'*"'
 
-    def t_BLACKBOX(self, t):
-        r'blackbox\s'
+    def t_EXTERN(self, t):
+        r'extern\s'
         t.lexer.push_state('bboxheader')
         return t
 
@@ -221,7 +221,7 @@ class P4Lexer:
 
     ##
     ## Lexer states: used for preprocessor \n-terminated directives and
-    #                blackbox attributes
+    #                extern attributes
     ##
     states = (
         # ppline: preprocessor line directives

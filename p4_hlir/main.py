@@ -47,8 +47,8 @@ class HLIR():
 
         self.p4_objects = []
 
-        self.p4_blackbox_types = OrderedDict()
-        self.p4_blackbox_instances = OrderedDict()
+        self.p4_extern_types = OrderedDict()
+        self.p4_extern_instances = OrderedDict()
         self.p4_actions = OrderedDict()
         self.p4_control_flows = OrderedDict()
         self.p4_headers = OrderedDict()
@@ -193,7 +193,7 @@ class HLIR():
         "control" : p4.p4_control_flow,
         "header" : p4.p4_header_instance,
         "metadata" : p4.p4_header_instance,
-        "blackbox" : p4.p4_blackbox_instance,
+        "extern" : p4.p4_extern_instance,
         "counter" : p4.p4_counter,
         "meter" : p4.p4_meter,
         "register" : p4.p4_register,
@@ -226,8 +226,8 @@ class HLIR():
             obj = self.p4_header_instances[value]
             assert(obj)
             return obj
-        elif obj_type == "blackbox":
-            obj = self.p4_blackbox_instances[value]
+        elif obj_type == "extern":
+            obj = self.p4_extern_instances[value]
             assert(obj)
             return obj
         elif obj_type == "bit" or obj_type == "varbit":

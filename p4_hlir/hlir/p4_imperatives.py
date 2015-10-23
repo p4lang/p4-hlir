@@ -16,7 +16,7 @@ from p4_core import *
 from p4_expressions import *
 import p4_headers
 import p4_tables
-import p4_blackboxes
+import p4_extern
 import p4_stateful
 
 import logging
@@ -96,7 +96,7 @@ class p4_action (p4_object):
                 called_action = hlir.p4_actions[action_name]
             elif len(call) == 4 and call[0] == "method":
                 _, bbox_name, method_name, arg_list = call
-                bbox = hlir.p4_blackbox_instances.get(bbox_name, None)
+                bbox = hlir.p4_extern_instances.get(bbox_name, None)
                 if bbox:
                     method = bbox.methods.get(method_name, None)
                     if method_name:
@@ -108,7 +108,7 @@ class p4_action (p4_object):
                         )
                 else:
                     raise p4_compiler_msg (
-                        "Reference to undefined blackbox instance '%s'" % bbox_name,
+                        "Reference to undefined extern instance '%s'" % bbox_name,
                         self.filename, self.lineno
                     )
 
@@ -222,9 +222,9 @@ class p4_action (p4_object):
                     b_action = hlir.p4_actions[binding_action]
                     filename = b_action.filename
                     lineno = b_action.lineno
-                # this case is broken because p4_blackbox_method has no
+                # this case is broken because p4_extern_method has no
                 # filename / lineno attributes
-                elif isinstance(self, p4_blackboxes.p4_blackbox_method):
+                elif isinstance(self, p4_extern.p4_extern_method):
                     filename = ""
                     lineno = 0
                 else:
@@ -375,7 +375,7 @@ class p4_control_flow (p4_object):
                     build_calls(hlir, call[3])
                     calls[idx] = (call[1], call[2], call[3])
                 elif call[0] == "method":
-                    bbox = hlir.p4_blackbox_instances.get(call[1], None)
+                    bbox = hlir.p4_extern_instances.get(call[1], None)
                     if bbox:
                         method_obj = bbox.methods.get(call[2], None)
                         if method_obj:
@@ -394,7 +394,7 @@ class p4_control_flow (p4_object):
                             )
                     else:
                         raise p4_compiler_msg(
-                            "Reference to undefined blackbox '%s'" % call[1],
+                            "Reference to undefined extern '%s'" % call[1],
                             self.filename, self.lineno
                         )
 

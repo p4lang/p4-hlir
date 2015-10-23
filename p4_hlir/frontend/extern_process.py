@@ -20,11 +20,11 @@ def find_bbox_attribute_types_P4TreeNode(
 ):
     pass
 
-def find_bbox_attribute_types_P4BlackboxTypeMethod(
+def find_bbox_attribute_types_P4ExternTypeMethod(
         self, bbox_attribute_types, bbox_attribute_required, bbox_methods
 ):
     if self.name in bbox_methods:
-        error_msg = "Redefinition of blackbox method '%s'"\
+        error_msg = "Redefinition of extern method '%s'"\
                     " in file %s at line %d"\
                     % (self.name, self.filename, self.lineno)
         P4TreeNode.print_error(error_msg)
@@ -32,11 +32,11 @@ def find_bbox_attribute_types_P4BlackboxTypeMethod(
 
     bbox_methods[self.name] = self
 
-def find_bbox_attribute_types_P4BlackboxTypeAttribute(
+def find_bbox_attribute_types_P4ExternTypeAttribute(
         self, bbox_attribute_types, bbox_attribute_required, bbox_methods
 ):
     if self.name in bbox_attribute_types:
-        error_msg = "Redefinition of blackbox attribute '%s'"\
+        error_msg = "Redefinition of extern attribute '%s'"\
                     " in file %s at line %d"\
                     % (self.name, self.filename, self.lineno)
         P4TreeNode.print_error(error_msg)
@@ -46,7 +46,7 @@ def find_bbox_attribute_types_P4BlackboxTypeAttribute(
     for prop in self.properties:
         if prop.name in properties:
             error_msg = "Redefinition of property '%s'"\
-                        " for blackbox attribute '%s' in file %s at line %d"\
+                        " for extern attribute '%s' in file %s at line %d"\
                         % (prop.name, self.name, prop.filename, prop.lineno)
             P4TreeNode.print_error(error_msg)
             return
@@ -54,7 +54,7 @@ def find_bbox_attribute_types_P4BlackboxTypeAttribute(
         prop._bbox_type_attr = self
 
     if "type" not in properties:
-        error_msg = "Blackbox attribute '%s' defined in file %s at line %d"\
+        error_msg = "Extern attribute '%s' defined in file %s at line %d"\
                     " has no 'type' property"\
                     % (self.name, prop.filename, prop.lineno)
         P4TreeNode.print_error(error_msg)
@@ -65,7 +65,7 @@ def find_bbox_attribute_types_P4BlackboxTypeAttribute(
     if "optional" not in properties or properties["optional"].value != True:
         bbox_attribute_required.add(self.name)
 
-def find_bbox_attribute_types_P4BlackboxType(
+def find_bbox_attribute_types_P4ExternType(
         self, bbox_attribute_types, bbox_attribute_required, bbox_methods
 ):
     assert(self.name not in bbox_attribute_types)
@@ -80,9 +80,9 @@ def find_bbox_attribute_types_P4BlackboxType(
         member._bbox_type = self
 
 P4TreeNode.find_bbox_attribute_types = find_bbox_attribute_types_P4TreeNode
-P4BlackboxType.find_bbox_attribute_types = find_bbox_attribute_types_P4BlackboxType
-P4BlackboxTypeAttribute.find_bbox_attribute_types = find_bbox_attribute_types_P4BlackboxTypeAttribute
-P4BlackboxTypeMethod.find_bbox_attribute_types = find_bbox_attribute_types_P4BlackboxTypeMethod
+P4ExternType.find_bbox_attribute_types = find_bbox_attribute_types_P4ExternType
+P4ExternTypeAttribute.find_bbox_attribute_types = find_bbox_attribute_types_P4ExternTypeAttribute
+P4ExternTypeMethod.find_bbox_attribute_types = find_bbox_attribute_types_P4ExternTypeMethod
 
 def find_bbox_attribute_types_P4Program(
         self, bbox_attribute_types, bbox_attribute_required, bbox_methods
@@ -162,9 +162,9 @@ def resolve_bbox_attribute(self, type_spec):
         subtype = attr_type_qualifiers["subtype"]
         new_attr_value = P4UserMetadataRefExpression(self.filename, self.lineno,
                                                      self.value.strip(), subtype)
-    elif attr_type == "blackbox":
+    elif attr_type == "extern":
         subtype = attr_type_qualifiers["subtype"]
-        new_attr_value = P4UserBlackboxRefExpression(self.filename, self.lineno,
+        new_attr_value = P4UserExternRefExpression(self.filename, self.lineno,
                                                      self.value.strip(), subtype)
     else:
         new_attr_value = P4TypedRefExpression(self.filename, self.lineno,
@@ -175,14 +175,14 @@ def resolve_bbox_attribute(self, type_spec):
     self.value = new_attr_value
     return self
 
-P4BlackboxInstanceAttribute.resolve_bbox_attribute = resolve_bbox_attribute
+P4ExternInstanceAttribute.resolve_bbox_attribute = resolve_bbox_attribute
 
-def resolve_bbox_attributes_P4BlackboxInstance(self, bbox_attribute_types):
-    bbox_type = self.blackbox_type
+def resolve_bbox_attributes_P4ExternInstance(self, bbox_attribute_types):
+    bbox_type = self.extern_type
     if bbox_type not in bbox_attribute_types:
         error_msg = "Error in file %s at line %d when declaring"\
-                    " blackbox instance '%s': '%s' does not refer"\
-                    " to a valid blackbox type"\
+                    " extern instance '%s': '%s' does not refer"\
+                    " to a valid extern type"\
                     % (self.filename, self.lineno, self.name, bbox_type)
         P4TreeNode.print_error(error_msg)
         return
@@ -193,8 +193,8 @@ def resolve_bbox_attributes_P4BlackboxInstance(self, bbox_attribute_types):
 
         if attr.name not in attr_types:
             error_msg = "Error in file %s at line %d when declaring"\
-                        " blackbox instance '%s': '%s' is not a"\
-                        " to a valid attribute for blackbox type %s"\
+                        " extern instance '%s': '%s' is not a"\
+                        " to a valid attribute for extern type %s"\
                         % (attr.filename, attr.lineno,
                            self.name, attr.name, bbox_type)
             P4TreeNode.print_error(error_msg)
@@ -209,7 +209,7 @@ def resolve_bbox_attributes_P4BlackboxInstance(self, bbox_attribute_types):
 
 
 P4TreeNode.resolve_bbox_attributes = resolve_bbox_attributes_P4TreeNode
-P4BlackboxInstance.resolve_bbox_attributes = resolve_bbox_attributes_P4BlackboxInstance
+P4ExternInstance.resolve_bbox_attributes = resolve_bbox_attributes_P4ExternInstance
 
 def resolve_bbox_attributes_P4Program(self, bbox_attribute_types):
     for obj in self.objects:
@@ -217,22 +217,22 @@ def resolve_bbox_attributes_P4Program(self, bbox_attribute_types):
 
 P4Program.resolve_bbox_attributes = resolve_bbox_attributes_P4Program
 
-def find_bbox_attribute_locals_P4BlackboxType(self, bbox_attr_locals):
+def find_bbox_attribute_locals_P4ExternType(self, bbox_attr_locals):
     assert(self.name not in bbox_attr_locals)
     bbox_attr_locals[self.name] = {}
     for member in self.members:
         member.find_bbox_attribute_locals(bbox_attr_locals[self.name])
 
-def find_bbox_attribute_locals_P4BlackboxTypeAttribute(self, bbox_attr_locals):
+def find_bbox_attribute_locals_P4ExternTypeAttribute(self, bbox_attr_locals):
     assert(self.name not in bbox_attr_locals)
     bbox_attr_locals[self.name] = []
     for prop in self.properties:
         prop.find_bbox_attribute_locals(bbox_attr_locals[self.name])
 
-def find_bbox_attribute_locals_P4BlackboxTypeMethod(self, bbox_attr_locals):
+def find_bbox_attribute_locals_P4ExternTypeMethod(self, bbox_attr_locals):
     pass
 
-def find_bbox_attribute_locals_P4BlackboxTypeAttributeProp(self, bbox_attr_locals):
+def find_bbox_attribute_locals_P4ExternTypeAttributeProp(self, bbox_attr_locals):
     if self.name == "locals":
         assert(type(self.value) is list)
         for local in self.value:
@@ -248,10 +248,10 @@ def find_bbox_attribute_locals_P4Program(self, bbox_attr_locals):
     for obj in self.objects:
         obj.find_bbox_attribute_locals(bbox_attr_locals)
 
-P4BlackboxType.find_bbox_attribute_locals = find_bbox_attribute_locals_P4BlackboxType
-P4BlackboxTypeAttribute.find_bbox_attribute_locals = find_bbox_attribute_locals_P4BlackboxTypeAttribute
-P4BlackboxTypeMethod.find_bbox_attribute_locals = find_bbox_attribute_locals_P4BlackboxTypeMethod
-P4BlackboxTypeAttributeProp.find_bbox_attribute_locals = find_bbox_attribute_locals_P4BlackboxTypeAttributeProp
+P4ExternType.find_bbox_attribute_locals = find_bbox_attribute_locals_P4ExternType
+P4ExternTypeAttribute.find_bbox_attribute_locals = find_bbox_attribute_locals_P4ExternTypeAttribute
+P4ExternTypeMethod.find_bbox_attribute_locals = find_bbox_attribute_locals_P4ExternTypeMethod
+P4ExternTypeAttributeProp.find_bbox_attribute_locals = find_bbox_attribute_locals_P4ExternTypeAttributeProp
 P4RefExpression.find_bbox_attribute_locals = find_bbox_attribute_locals_P4RefExpression
 P4TreeNode.find_bbox_attribute_locals = find_bbox_attribute_locals_P4TreeNode
 P4Program.find_bbox_attribute_locals = find_bbox_attribute_locals_P4Program

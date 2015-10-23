@@ -1,6 +1,6 @@
 /***************************************************************************/
 
-blackbox_type counter {
+extern_type counter {
         
     attribute type {
         /* Must be either:
@@ -64,7 +64,7 @@ blackbox_type counter {
 
 /***************************************************************************/
 
-blackbox_type meter {
+extern_type meter {
         
     attribute type {
         /* Must be either:
@@ -116,7 +116,7 @@ blackbox_type meter {
 
 /***************************************************************************/
 
-blackbox_type hash_calculation {
+extern_type hash_calculation {
     attribute input {
         type: field_list ;
     }
@@ -172,7 +172,7 @@ blackbox_type hash_calculation {
 
 /***************************************************************************/
 
-blackbox_type streaming_checksum {
+extern_type streaming_checksum {
     attribute algorithm {
         /*
         Streaming checksum algorithm to use. Currently either:
@@ -230,9 +230,9 @@ blackbox_type streaming_checksum {
 
 /***************************************************************************/
 
-blackbox_type checksum_updater {
+extern_type checksum_updater {
     attribute source_calculation {
-        type: blackbox hash_calculation;
+        type: extern hash_calculation;
     }
 
     attribute destination {
@@ -255,19 +255,19 @@ blackbox_type checksum_updater {
 
 /***************************************************************************/
 
-blackbox_type action_profile {
+extern_type action_profile {
     attribute size {
         type: int;
         optional;
     }
     attribute dynamic_action_selection {
-        type: blackbox hash_calculation;
+        type: extern hash_calculation;
         optional;
     }
 }
 
 /***************************************************************************/
 
-blackbox_type digest_receiver {
+extern_type digest_receiver {
     method send_digest (in field_list digest);
 }

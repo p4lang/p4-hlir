@@ -21,7 +21,7 @@ from p4_expressions import p4_expression
 from p4_hlir.util.OrderedSet import OrderedSet
 from collections import OrderedDict, defaultdict
 
-class p4_blackbox_attribute (object):
+class p4_extern_attribute (object):
     def __init__ (self, name, parent, optional=False, value_type=None, expr_locals=None):
         self.name = name
         self.parent = parent
@@ -33,7 +33,7 @@ class p4_blackbox_attribute (object):
     def __str__(self):
         return self.parent.name + "." + self.name
 
-class p4_blackbox_method (p4_action):
+class p4_extern_method (p4_action):
     def __init__ (self, hlir, name, parent, params=None, access=None, instantiated=False):
         self.name = name
         self.parent = parent
@@ -106,7 +106,7 @@ class p4_blackbox_method (p4_action):
     def __str__(self):
         return self.parent.name + "." + self.name + "()"
 
-class p4_blackbox_type (p4_object):
+class p4_extern_type (p4_object):
     """
     TODO
     """
@@ -123,7 +123,7 @@ class p4_blackbox_type (p4_object):
         self.required_attributes = OrderedSet()
         attribute_dict = OrderedDict()
         for attribute in self.attributes:
-            attr = p4_blackbox_attribute(name=attribute[0], parent=self)
+            attr = p4_extern_attribute(name=attribute[0], parent=self)
 
             specified_props = set()
             for prop in attribute[1]:
@@ -137,7 +137,7 @@ class p4_blackbox_type (p4_object):
                     attr.expr_locals = prop[1]
                 else:
                     raise p4_compiler_msg (
-                        "Blackbox attribute '"+str(attr)+"' specifies unknown property '"+prop[0]+"' within blackbox type.",
+                        "Extern attribute '"+str(attr)+"' specifies unknown property '"+prop[0]+"' within extern type.",
                         self.filename, self.lineno
                     )
 
@@ -150,7 +150,7 @@ class p4_blackbox_type (p4_object):
         # Process methods
         method_dict = OrderedDict()
         for method in self.methods:
-            new_method = p4_blackbox_method(hlir=hlir, name=method[0],
+            new_method = p4_extern_method(hlir=hlir, name=method[0],
                                             parent=self, params=method[1],
                                             access=method[2])
 
@@ -160,7 +160,7 @@ class p4_blackbox_type (p4_object):
 
         self.instances = OrderedDict()
 
-        hlir.p4_blackbox_types[self.name] = self
+        hlir.p4_extern_types[self.name] = self
 
 
     def build (self, hlir):
@@ -168,11 +168,11 @@ class p4_blackbox_type (p4_object):
             method.build(hlir)
 
 
-class p4_blackbox_instance (p4_object):
+class p4_extern_instance (p4_object):
     """
     TODO
     """
-    required_attributes = ["name", "blackbox_type", "attributes"]
+    required_attributes = ["name", "extern_type", "attributes"]
     allowed_attributes = required_attributes + ["doc"]
 
     def __init__ (self, hlir, name, **kwargs):
@@ -181,16 +181,16 @@ class p4_blackbox_instance (p4_object):
         if not self.valid_obj:
             return
 
-        hlir.p4_blackbox_instances[self.name] = self
+        hlir.p4_extern_instances[self.name] = self
 
         self.methods = OrderedDict()
 
     def build (self, hlir):
-        self.blackbox_type = hlir.p4_blackbox_types[self.blackbox_type]
-        self.blackbox_type.instances[self.name] = self
+        self.extern_type = hlir.p4_extern_types[self.extern_type]
+        self.extern_type.instances[self.name] = self
 
-        for method in self.blackbox_type.methods.values():
-            self.methods[method.name] = p4_blackbox_method(
+        for method in self.extern_type.methods.values():
+            self.methods[method.name] = p4_extern_method(
                 hlir,
                 method.name,
                 self,
@@ -202,14 +202,14 @@ class p4_blackbox_instance (p4_object):
         processed_attributes = OrderedDict()
         for attr_name, attr_value in self.attributes:
             processed_attributes[attr_name] = hlir._resolve_object(
-                self.blackbox_type.attributes[attr_name].value_type,
+                self.extern_type.attributes[attr_name].value_type,
                 attr_value,
                 filename=self.filename,
                 lineno=self.lineno
             )
 
             if isinstance(processed_attributes[attr_name], p4_expression):
-                local_vars = self.blackbox_type.attributes[attr_name].expr_locals
+                local_vars = self.extern_type.attributes[attr_name].expr_locals
                 local_vars = {var:var for var in local_vars}
                 processed_attributes[attr_name].resolve_names(
                     hlir,

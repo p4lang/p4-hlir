@@ -17,7 +17,7 @@ from collections import defaultdict
 import json
 import os
 import unused_removal
-import blackbox_process
+import extern_process
 
 class ObjectTable:
     def __init__(self):
@@ -72,8 +72,8 @@ class P4SemanticChecker:
 
     def _bind(self):
         P4Program.check = check_P4Program
-        P4BlackboxType.check = check_P4BlackboxType
-        P4BlackboxInstance.check = check_P4BlackboxInstance
+        P4ExternType.check = check_P4ExternType
+        P4ExternInstance.check = check_P4ExternInstance
         P4HeaderType.check = check_P4HeaderType
         P4HeaderInstance.check = check_P4HeaderInstance
         P4HeaderInstanceRegular.check = check_P4HeaderInstanceRegular
@@ -105,7 +105,7 @@ class P4SemanticChecker:
         P4TypedRefExpression.check = check_P4TypedRefExpression
         P4UserHeaderRefExpression.check = check_P4UserHeaderRefExpression
         P4UserMetadataRefExpression.check = check_P4UserMetadataRefExpression
-        P4UserBlackboxRefExpression.check = check_P4UserBlackboxRefExpression
+        P4UserExternRefExpression.check = check_P4UserExternRefExpression
 
         P4BoolBinaryExpression.check = check_P4BoolBinaryExpression
         P4BoolUnaryExpression.check = check_P4BoolUnaryExpression
@@ -125,14 +125,14 @@ class P4SemanticChecker:
 
         P4ActionCall.check = check_P4ActionCall
 
-        P4BlackboxTypeAttribute.check = check_P4BlackboxTypeAttribute
-        P4BlackboxTypeAttributeProp.check = check_P4BlackboxTypeAttributeProp
-        P4BlackboxTypeMethod.check = check_P4BlackboxTypeMethod
-        P4BlackboxTypeMethodAccess.check = check_P4BlackboxTypeMethodAccess
+        P4ExternTypeAttribute.check = check_P4ExternTypeAttribute
+        P4ExternTypeAttributeProp.check = check_P4ExternTypeAttributeProp
+        P4ExternTypeMethod.check = check_P4ExternTypeMethod
+        P4ExternTypeMethodAccess.check = check_P4ExternTypeMethodAccess
 
-        P4BlackboxInstanceAttribute.check = check_P4BlackboxInstanceAttribute
+        P4ExternInstanceAttribute.check = check_P4ExternInstanceAttribute
 
-        P4BlackboxMethodCall.check = check_P4BlackboxMethodCall
+        P4ExternMethodCall.check = check_P4ExternMethodCall
 
         P4TableFieldMatch.check = check_P4TableFieldMatch
 
@@ -158,7 +158,7 @@ class P4SemanticChecker:
         P4ActionFunction.detect_recursion = detect_recursion_P4ActionFunction
         P4ActionCall.detect_recursion = detect_recursion_P4ActionCall
 
-        P4BlackboxMethodCall.detect_recursion = detect_recursion_P4BlackboxMethodCall
+        P4ExternMethodCall.detect_recursion = detect_recursion_P4ExternMethodCall
 
         P4FieldList.detect_recursion_field_list = detect_recursion_field_list_P4FieldList
         P4Expression.detect_recursion_field_list = detect_recursion_field_list_P4Expression
@@ -175,7 +175,7 @@ class P4SemanticChecker:
         P4RefExpression.check_action_typing = check_action_typing_P4RefExpression
         P4Integer.check_action_typing = check_action_typing_P4Integer
         P4UnaryExpression.check_action_typing = check_action_typing_P4Integer
-        P4BlackboxMethodCall.check_action_typing = check_action_typing_P4BlackboxMethodCall
+        P4ExternMethodCall.check_action_typing = check_action_typing_P4ExternMethodCall
         P4ParserFunction.check_action_typing = check_action_typing_P4ParserFunction
         P4ControlFunction.check_action_typing = check_action_typing_P4ControlFunction
 
@@ -186,7 +186,7 @@ class P4SemanticChecker:
         P4RefExpression.find_unused_args = find_unused_args_P4RefExpression
         P4UnaryExpression.find_unused_args = find_unused_args_P4UnaryExpression
         P4BinaryExpression.find_unused_args = find_unused_args_P4BinaryExpression
-        P4BlackboxMethodCall.find_unused_args = find_unused_args_P4BlackboxMethodCall
+        P4ExternMethodCall.find_unused_args = find_unused_args_P4ExternMethodCall
 
         P4TreeNode.remove_unused_args = remove_unused_args_P4TreeNode
         P4Program.remove_unused_args = remove_unused_args_P4Program
@@ -201,7 +201,7 @@ class P4SemanticChecker:
 
         P4Program.check_apply_action_cases = check_apply_action_cases_P4Program
         P4ControlFunction.check_apply_action_cases = check_apply_action_cases_P4ControlFunction
-        P4BlackboxMethodCall.check_apply_action_cases = check_apply_action_cases_P4BlackboxMethodCall
+        P4ExternMethodCall.check_apply_action_cases = check_apply_action_cases_P4ExternMethodCall
         P4ControlFunctionStatement.check_apply_action_cases = check_apply_action_cases_P4ControlFunctionStatement
         P4ControlFunctionIfElse.check_apply_action_cases = check_apply_action_cases_P4ControlFunctionIfElse
         P4ControlFunctionApplyAndSelect.check_apply_action_cases = check_apply_action_cases_P4ControlFunctionApplyAndSelect
@@ -323,8 +323,8 @@ def import_objects(p4_objects, symbols, objects):
         elif isinstance(obj, P4HeaderInstanceMetadata):
             subtype = (Types.header_instance_metadata, obj.header_type)
             symbols.add_type(name, subtype)
-        elif isinstance(obj, P4BlackboxInstance):
-            subtype = (Types.blackbox_instance, obj.blackbox_type)
+        elif isinstance(obj, P4ExternInstance):
+            subtype = (Types.extern_instance, obj.extern_type)
             symbols.add_type(name, subtype)
 
 def import_header_fields(p4_objects, header_fields):
@@ -372,7 +372,7 @@ def detect_recursion_P4ActionCall(self, objects, action):
     if not action_called: return False
     return action_called.detect_recursion(objects, action)
 
-def detect_recursion_P4BlackboxMethodCall(self, objects, action):
+def detect_recursion_P4ExternMethodCall(self, objects, action):
     return False
 
 def check_action_typing_P4Program(self, symbols, objects,
@@ -384,12 +384,12 @@ def check_action_typing_P4Program(self, symbols, objects,
 
 def check_action_typing_P4ParserFunction(self, symbols, objects, trace = None):
     for statement in self.extract_and_set_statements:
-        if isinstance(statement, P4BlackboxMethodCall):
+        if isinstance(statement, P4ExternMethodCall):
             statement.check_action_typing(symbols, objects, trace = [self.name])
 
 def check_action_typing_P4ControlFunction(self, symbols, objects, trace = None):
     for statement in self.statements:
-        if isinstance(statement, P4BlackboxMethodCall):
+        if isinstance(statement, P4ExternMethodCall):
             statement.check_action_typing(symbols, objects, trace = [self.name])
 
 def check_action_typing_P4Table(self, symbols, objects,
@@ -468,11 +468,11 @@ def check_action_typing_P4ActionCall(self, symbols, objects,
     symbols.pushscope(parent_scope)
 
 
-def check_action_typing_P4BlackboxMethodCall(self, symbols, objects,
+def check_action_typing_P4ExternMethodCall(self, symbols, objects,
                                              trace = None):
-    bbox_instance = objects.get_object(self.blackbox_instance.name, P4BlackboxInstance)
+    bbox_instance = objects.get_object(self.extern_instance.name, P4ExternInstance)
     assert(bbox_instance is not None)
-    bbox_type = objects.get_object(bbox_instance.blackbox_type, P4BlackboxType)
+    bbox_type = objects.get_object(bbox_instance.extern_type, P4ExternType)
     assert(bbox_type is not None)
     method = P4TreeNode.bbox_methods[bbox_type.name][self.method]
     types = []
@@ -488,9 +488,9 @@ def check_action_typing_P4BlackboxMethodCall(self, symbols, objects,
         elif type_ == "metadata":
             subtype = attr_type_qualifiers["subtype"]
             return {(Types.header_instance_metadata, subtype)}
-        elif type_ == "blackbox":
+        elif type_ == "extern":
             subtype = attr_type_qualifiers["subtype"]
-            return {(Types.blackbox_instance, subtype)}
+            return {(Types.extern_instance, subtype)}
         else:
             type_map = {
                 "int" : {Types.int_},
@@ -518,7 +518,7 @@ def check_action_typing_P4BlackboxMethodCall(self, symbols, objects,
         expected_type_spec = method.param_list[idx][1]
         expected_type_set = type_spec_to_type_set(expected_type_spec)
         if not (type_set & expected_type_set):
-            error_msg = "Error when calling blackbox method '%s' (%s)"\
+            error_msg = "Error when calling extern method '%s' (%s)"\
                         " in file %s at line %d:"\
                         " argument %d has type %s, but formal '%s' has type %s"\
                         % (method.name, get_trace_str(trace),
@@ -529,7 +529,7 @@ def check_action_typing_P4BlackboxMethodCall(self, symbols, objects,
             P4TreeNode.print_error(error_msg)
             continue
         elif len(type_set & expected_type_set) > 1:
-            error_msg = "Error when calling blackbox method '%s' (%s)"\
+            error_msg = "Error when calling extern method '%s' (%s)"\
                         " in file %s at line %d:"\
                         " several candidates for argument %d, possible types are "\
                         % (method.name, get_trace_str(trace),
@@ -606,7 +606,7 @@ def find_unused_args_P4BinaryExpression(self, removed, used_args = None):
     self.left.find_unused_args(removed, used_args)
     self.right.find_unused_args(removed, used_args)
 
-def find_unused_args_P4BlackboxMethodCall(self, removed, used_args = None):
+def find_unused_args_P4ExternMethodCall(self, removed, used_args = None):
     for arg in self.arg_list:
         arg.find_unused_args(removed, used_args)
 
@@ -663,7 +663,7 @@ def check_apply_action_cases_P4ControlFunction(self, table_actions, apply_table 
         statement.check_apply_action_cases(table_actions)
 
 
-def check_apply_action_cases_P4BlackboxMethodCall(self, table_actions, apply_table = None):
+def check_apply_action_cases_P4ExternMethodCall(self, table_actions, apply_table = None):
     pass
 
 def check_apply_action_cases_P4ControlFunctionStatement(self, table_actions, apply_table = None):
@@ -807,7 +807,7 @@ def check_P4Program(self, symbols, header_fields, objects, types = None):
     if self.get_errors_cnt() == 0:
         self.remove_unused(objects)
 
-def check_P4BlackboxType(self, symbols, header_fields, objects, types = None):
+def check_P4ExternType(self, symbols, header_fields, objects, types = None):
     for member in self.members:
         member.check(symbols, header_fields, objects)
 
@@ -815,8 +815,8 @@ def check_P4TypeSpec(self, symbols, header_fields, objects, types = None):
     if self.name == "header" or self.name == "metadata":
         type_ = Types.header_type
         subtype = self.qualifiers["subtype"]
-    elif self.name == "blackbox":
-        type_ = Types.blackbox_type
+    elif self.name == "extern":
+        type_ = Types.extern_type
         subtype = self.qualifiers["subtype"]
     else:
         return
@@ -827,19 +827,19 @@ def check_P4TypeSpec(self, symbols, header_fields, objects, types = None):
                 % (subtype, self.filename, self.lineno, Types.get_name(type_))
     P4TreeNode.print_error(error_msg)
 
-def check_P4BlackboxTypeAttributeProp(self, symbols, header_fields, objects, types = None):
+def check_P4ExternTypeAttributeProp(self, symbols, header_fields, objects, types = None):
     if self.name == "type":
         assert(isinstance(self.value, P4TypeSpec))
         self.value.check(symbols, header_fields, objects)
 
-def check_P4BlackboxTypeAttribute(self, symbols, header_fields, objects, types = None):
+def check_P4ExternTypeAttribute(self, symbols, header_fields, objects, types = None):
     for prop in self.properties:
         prop.check(symbols, header_fields, objects)
 
-def check_P4BlackboxTypeMethod(self, symbols, header_fields, objects, types = None):
+def check_P4ExternTypeMethod(self, symbols, header_fields, objects, types = None):
     symbols.enterscope()
     for attr_name in P4TreeNode.bbox_attribute_types[self._bbox_type.name]:
-        symbols.add_type(attr_name, Types.blackbox_attribute)
+        symbols.add_type(attr_name, Types.extern_attribute)
     for attr_access in self.attr_access:
         attr_access.check(symbols, header_fields, objects)
     symbols.exitscope()
@@ -854,37 +854,37 @@ def check_P4BlackboxTypeMethod(self, symbols, header_fields, objects, types = No
             has_optional = True
         elif has_optional:
             error_msg = "Error when declaring method '%s'"\
-                        " for blackbox type '%s' in file %s at line %d:"\
+                        " for extern type '%s' in file %s at line %d:"\
                         " all parameters following first optional parameter"\
                         " must also be optional"\
                         % (self.name, self._bbox_type.name,
                            self.filename, self.lineno)
 
-def check_P4BlackboxTypeMethodAccess(self, symbols, header_fields, objects, types = None):
+def check_P4ExternTypeMethodAccess(self, symbols, header_fields, objects, types = None):
     for attr in self.attrs:
         attr.check(symbols, header_fields, objects,
-                   types = {Types.blackbox_attribute})
+                   types = {Types.extern_attribute})
 
-def check_P4BlackboxInstance(self, symbols, header_fields, objects, types = None):
+def check_P4ExternInstance(self, symbols, header_fields, objects, types = None):
     defined_attributes = set()
     for attr in self.attributes:
         attr._bbox_instance = self
         attr.check(symbols, header_fields, objects)
         defined_attributes.add(attr.name)
 
-    bbox_type_name = self.blackbox_type
+    bbox_type_name = self.extern_type
     missing_attributes = P4TreeNode.bbox_attribute_required[bbox_type_name] -\
                          defined_attributes
     for attr in missing_attributes:
-        error_msg = "Error when declaring blackbox instance '%s'"\
+        error_msg = "Error when declaring extern instance '%s'"\
                     " in file %s at line %d: attribute '%s' is required"\
-                    " for blackbox instances of type '%s'"\
+                    " for extern instances of type '%s'"\
                     % (self.name, self.filename, self.lineno,
                        attr, bbox_type_name)
         P4TreeNode.print_error(error_msg)
 
-def check_P4BlackboxInstanceAttribute(self, symbols, header_fields, objects, types = None):
-    bbox_type = objects.get_object(self._bbox_instance.blackbox_type, P4BlackboxType)
+def check_P4ExternInstanceAttribute(self, symbols, header_fields, objects, types = None):
+    bbox_type = objects.get_object(self._bbox_instance.extern_type, P4ExternType)
     assert(bbox_type is not None)
     bbox_locals = P4TreeNode.bbox_attribute_locals[bbox_type.name]
     my_locals = bbox_locals[self.name]
@@ -921,7 +921,7 @@ def check_P4UserMetadataRefExpression(self, symbols, header_fields, objects, typ
                 % (self.name, self.filename, self.lineno, self.header_type)
     P4TreeNode.print_error(error_msg)
 
-def check_P4UserBlackboxRefExpression(self, symbols, header_fields, objects, types = None):
+def check_P4UserExternRefExpression(self, symbols, header_fields, objects, types = None):
     # TODO
     pass
 
@@ -1183,20 +1183,20 @@ def check_P4ActionCall(self, symbols, header_fields, objects, types = None):
             }
         )
 
-def check_P4BlackboxMethodCall(self, symbols, header_fields, objects, types = None):
-    if not self.blackbox_instance.check(symbols, header_fields, objects,
-                                        {Types.blackbox_instance}):
+def check_P4ExternMethodCall(self, symbols, header_fields, objects, types = None):
+    if not self.extern_instance.check(symbols, header_fields, objects,
+                                        {Types.extern_instance}):
         return
-    bbox_instance = objects.get_object(self.blackbox_instance.name, P4BlackboxInstance)
+    bbox_instance = objects.get_object(self.extern_instance.name, P4ExternInstance)
     assert(bbox_instance is not None)
-    bbox_type = objects.get_object(bbox_instance.blackbox_type, P4BlackboxType)
+    bbox_type = objects.get_object(bbox_instance.extern_type, P4ExternType)
     assert(bbox_type is not None)
 
     if self.method not in P4TreeNode.bbox_methods[bbox_type.name]:
-        error_msg = "Invalid call to method '%s' on blackbox instance '%s'"\
+        error_msg = "Invalid call to method '%s' on extern instance '%s'"\
                     " in file %s at line %d:"\
-                    " this is not a valid method for blackbox type '%s'"\
-                    % (self.method, self.blackbox_instance.name,
+                    " this is not a valid method for extern type '%s'"\
+                    % (self.method, self.extern_instance.name,
                        self.filename, self.lineno, bbox_type.name)
         P4TreeNode.print_error(error_msg)
         return
@@ -1210,19 +1210,19 @@ def check_P4BlackboxMethodCall(self, symbols, header_fields, objects, types = No
             required -= 1
 
     if num_params == required and num_params != num_args:
-        error_msg = "Blackbox method '%s' expected %d arguments but got %d"\
+        error_msg = "Extern method '%s' expected %d arguments but got %d"\
                     " in file %s at line %d"\
                     % (self.method, num_params, num_args,
                        self.filename, self.lineno)
         P4TreeNode.print_error(error_msg)
     elif num_args < required:
-        error_msg = "Blackbox method '%s' expected at least %d arguments but only got %d"\
+        error_msg = "Extern method '%s' expected at least %d arguments but only got %d"\
                     " in file %s at line %d"\
                     % (self.method, num_params, num_args,
                        self.filename, self.lineno)
         P4TreeNode.print_error(error_msg)
     elif num_args > num_params:
-        error_msg = "Blackbox method '%s' can only accept %d arguments but got %d"\
+        error_msg = "Extern method '%s' can only accept %d arguments but got %d"\
                     " in file %s at line %d"\
                     % (self.method, num_params, num_args,
                        self.filename, self.lineno)

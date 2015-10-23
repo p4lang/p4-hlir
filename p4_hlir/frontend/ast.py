@@ -38,11 +38,11 @@ class Types:
             action_selector,
             control_function,
             parser_exception,
-            blackbox_type,
-            blackbox_instance,
+            extern_type,
+            extern_instance,
             type_spec,
             local,
-            blackbox_attribute,
+            extern_attribute,
         ) = range(type_count)
         except:
             type_count += 1
@@ -72,11 +72,11 @@ class Types:
         bool_ : "boolean value",
         string_ : "string value",
         parser_exception : "parser_exception",
-        blackbox_type : "blackbox type",
-        blackbox_instance : "blackbox instance",
+        extern_type : "extern type",
+        extern_instance : "extern instance",
         type_spec : "type specification",
         local : "local variable",
-        blackbox_attribute : "blackbox attribute",
+        extern_attribute : "extern attribute",
     }
 
     @staticmethod
@@ -219,9 +219,9 @@ class P4UserMetadataRefExpression(P4RefExpression):
         super(P4UserMetadataRefExpression, self).__init__(filename, lineno, name)
         self.header_type = header_type
 
-class P4UserBlackboxRefExpression(P4RefExpression):
+class P4UserExternRefExpression(P4RefExpression):
     def __init__(self, filename, lineno, name, bbox_type):
-        super(P4UserBlackboxRefExpression, self).__init__(filename, lineno, name)
+        super(P4UserExternRefExpression, self).__init__(filename, lineno, name)
         self.bbox_type = bbox_type
 
 # header ref can be latest !
@@ -425,68 +425,68 @@ class P4ActionCall(P4TreeNode):
         self.action = name
         self.arg_list = arg_list
 
-class P4BlackboxType(P4NamedObject):
+class P4ExternType(P4NamedObject):
     def __init__(self, filename, lineno, name, members = []):
-        super(P4BlackboxType, self).__init__(filename, lineno, name)
+        super(P4ExternType, self).__init__(filename, lineno, name)
         self.members = members
 
     def get_type_(self):
-        return Types.blackbox_type
+        return Types.extern_type
 
-class P4BlackboxTypeMember(P4TreeNode):
+class P4ExternTypeMember(P4TreeNode):
     def __init__(self, filename, lineno):
-        super(P4BlackboxTypeMember, self).__init__(filename, lineno)
+        super(P4ExternTypeMember, self).__init__(filename, lineno)
         # reverse "pointer"
         self._bbox_type = None
 
-class P4BlackboxTypeAttribute(P4BlackboxTypeMember):
+class P4ExternTypeAttribute(P4ExternTypeMember):
     def __init__(self, filename, lineno, name, properties):
-        super(P4BlackboxTypeAttribute, self).__init__(filename, lineno)
+        super(P4ExternTypeAttribute, self).__init__(filename, lineno)
         self.name = name
         self.properties = properties
 
-class P4BlackboxTypeAttributeProp(P4TreeNode):
+class P4ExternTypeAttributeProp(P4TreeNode):
     def __init__(self, filename, lineno, name, value):
-        super(P4BlackboxTypeAttributeProp, self).__init__(filename, lineno)
+        super(P4ExternTypeAttributeProp, self).__init__(filename, lineno)
         self.name = name
         self.value = value
         # reverse "pointer"
         self._bbox_type_attr = None
 
-class P4BlackboxTypeMethod(P4BlackboxTypeMember):
+class P4ExternTypeMethod(P4ExternTypeMember):
     def __init__(self, filename, lineno, name, param_list, attr_access):
-        super(P4BlackboxTypeMethod, self).__init__(filename, lineno)
+        super(P4ExternTypeMethod, self).__init__(filename, lineno)
         self.name = name
         self.param_list = param_list
         self.attr_access = attr_access
 
-class P4BlackboxTypeMethodAccess(P4TreeNode):
+class P4ExternTypeMethodAccess(P4TreeNode):
     def __init__(self, filename, lineno, type_, attrs):
-        super(P4BlackboxTypeMethodAccess, self).__init__(filename, lineno)
+        super(P4ExternTypeMethodAccess, self).__init__(filename, lineno)
         self.type_ = type_
         self.attrs = attrs
 
-class P4BlackboxInstance(P4NamedObject):
-    def __init__(self, filename, lineno, name, blackbox_type, attributes = []):
-        super(P4BlackboxInstance, self).__init__(filename, lineno, name)
+class P4ExternInstance(P4NamedObject):
+    def __init__(self, filename, lineno, name, extern_type, attributes = []):
+        super(P4ExternInstance, self).__init__(filename, lineno, name)
         self.attributes = attributes
-        self.blackbox_type = blackbox_type
+        self.extern_type = extern_type
 
     def get_type_(self):
-        return Types.blackbox_instance
+        return Types.extern_instance
 
-class P4BlackboxInstanceAttribute(P4TreeNode):
+class P4ExternInstanceAttribute(P4TreeNode):
     def __init__(self, filename, lineno, name, value):
-        super(P4BlackboxInstanceAttribute, self).__init__(filename, lineno)
+        super(P4ExternInstanceAttribute, self).__init__(filename, lineno)
         self.name = name
         self.value = value
         # reverse "pointer"
         self._bbox_instance = None
 
-class P4BlackboxMethodCall(P4TreeNode):
-    def __init__(self, filename, lineno, blackbox_instance, method, arg_list = []):
-        super(P4BlackboxMethodCall, self).__init__(filename, lineno)
-        self.blackbox_instance = blackbox_instance
+class P4ExternMethodCall(P4TreeNode):
+    def __init__(self, filename, lineno, extern_instance, method, arg_list = []):
+        super(P4ExternMethodCall, self).__init__(filename, lineno)
+        self.extern_instance = extern_instance
         self.method = method
         self.arg_list = arg_list
 

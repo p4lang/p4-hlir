@@ -14,7 +14,7 @@
 
 from p4_core import *
 import p4_imperatives
-import p4_blackboxes
+import p4_extern
 import p4_headers
 import exclusive_conditions
 
@@ -246,7 +246,7 @@ def _p4_control_flow_to_table_graph(hlir,
             next_parents = [call_entry]
             call_entry.control_flow_parent = parent_fn.name
             call_entry.conditional_barrier = conditional_barrier
-        elif type(call) is tuple and type(call[0]) is p4_blackboxes.p4_blackbox_method:
+        elif type(call) is tuple and type(call[0]) is p4_extern.p4_extern_method:
             call_entry = p4_action_node (hlir, call[0], call[1])
             next_parents = [call_entry]
             call_entry.control_flow_parent = parent_fn.name
