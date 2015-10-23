@@ -1344,38 +1344,6 @@ class P4Parser:
         self.print_error(p.lineno(1),
                          "Invalid result attribute for meter")
 
-    def p_direct_pre_color_1(self, p):
-        """ direct_pre_color : empty
-        """
-        pass # None
-
-    def p_direct_pre_color_2(self, p):
-        """ direct_pre_color : PRE_COLOR COLON field_ref SEMI
-        """
-        p[0] = p[3]
-
-    def p_direct_pre_color_error_1(self, p):
-        """ direct_pre_color : PRE_COLOR error SEMI
-        """
-        self.print_error(p.lineno(1),
-                         "Invalid pre_color attribute for meter")
-
-    def p_meter_implementation_1(self, p):
-        """ meter_implementation : empty
-        """
-        pass # None
-
-    def p_meter_implementation_2(self, p):
-        """ meter_implementation : IMPLEMENTATION COLON ID SEMI
-        """
-        p[0] = p[3]
-
-    def p_meter_implementation_error_1(self, p):
-        """ meter_implementation : IMPLEMENTATION error SEMI
-        """
-        self.print_error(p.lineno(1),
-                         "Invalid implementation attribute for meter")
-
 
     # REGISTER
 
