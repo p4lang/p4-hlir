@@ -241,6 +241,51 @@ class p4_header_instance (p4_object):
     def __str__ (self):
         return self.name
 
+class p4_header_stack (p4_object):
+    """
+    TODO
+    """
+    required_attributes = ["name", "header_type", "size"]
+    allowed_attributes = required_attributes
+
+    def __init__(self, hlir, name, **kwargs):
+
+        p4_object.__init__(self, hlir, name, **kwargs)
+
+        index_range = range(0, self.size) + [P4_NEXT, P4_LAST]
+        max_index = self.size - 1
+
+        self.instances = OrderedDict()
+
+        for idx in index_range:
+            virtual = False if idx == None or type(idx) is int else True
+            g_header_instance = p4_header_instance(
+                hlir,
+                self.name, header_type = self.header_type,
+                index = idx, max_index = max_index,
+                filename = self.filename, lineno = self.lineno,
+                metadata = False, initializer = {},
+                virtual = virtual
+            )
+            g_header_instance._pragmas = self._pragmas.copy()
+            self.instances[g_header_instance.name] = g_header_instance
+
+        hlir.p4_header_stacks[self.name] = self
+
+    @staticmethod
+    def get_from_hlir(hlir, name):
+        return hlir.p4_header_stacks[name]
+
+    def build (self, hlir):
+        self.header_type = hlir.p4_headers[self.header_type]
+
+    def dump_to_p4(self):
+        # TODO
+        pass
+
+    def __str__ (self):
+        return self.name
+
 class p4_header (p4_object):
 
     required_attributes = ["name", "layout", "attributes"]

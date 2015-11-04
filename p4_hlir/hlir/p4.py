@@ -124,6 +124,9 @@ def p4_validate(hlir):
         for _, p4_object in hlir_dict.items():
             p4_object.build(hlir)
 
+    for register_ref in hlir._p4_register_refs:
+        register_ref.build(hlir)
+
     # Flatten recursive field lists and confirm they contain no cycles
     for field_list in hlir.p4_field_lists.values():
         field_list.flatten(hlir)

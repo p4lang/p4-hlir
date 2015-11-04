@@ -22,6 +22,7 @@ from p4_hlir.hlir.p4_core import p4_compiler_msg
 from p4_hlir.hlir.p4_headers import (
     p4_header,
     p4_header_instance,
+    p4_header_stack,
     p4_field_list,
     p4_field_list_calculation,
     p4_field,
@@ -34,6 +35,7 @@ from p4_hlir.hlir.p4_parser import (
 )
 from p4_hlir.hlir.p4_imperatives import (
     p4_action, p4_control_flow, p4_table_entry_data,
+    p4_register_ref,
     P4_READ, P4_WRITE
 )
 from p4_hlir.hlir.p4_tables import (
@@ -81,6 +83,7 @@ class P4HlirDumper:
     def _bind(self):
         P4Program.dump_to_p4 = dump_to_p4_P4Program
         P4HeaderType.dump_to_p4 = dump_to_p4_P4HeaderType
+        P4HeaderStack.dump_to_p4 = dump_to_p4_P4HeaderStack
         P4HeaderInstance.dump_to_p4 = dump_to_p4_P4HeaderInstance
         P4HeaderInstanceRegular.dump_to_p4 = dump_to_p4_P4HeaderInstanceRegular
         P4HeaderInstanceMetadata.dump_to_p4 = dump_to_p4_P4HeaderInstanceMetadata
@@ -92,7 +95,6 @@ class P4HlirDumper:
         P4Counter.dump_to_p4 = dump_to_p4_P4Counter
         P4Meter.dump_to_p4 = dump_to_p4_P4Meter
         P4Register.dump_to_p4 = dump_to_p4_P4Register
-        P4PrimitiveAction.dump_to_p4 = dump_to_p4_P4PrimitiveAction
         P4ActionFunction.dump_to_p4 = dump_to_p4_P4ActionFunction
         P4Table.dump_to_p4 = dump_to_p4_P4Table
         P4ActionProfile.dump_to_p4 = dump_to_p4_P4ActionProfile
@@ -104,27 +106,27 @@ class P4HlirDumper:
 
         P4ExternTypeAttribute.dump_to_p4 = dump_to_p4_P4ExternTypeAttribute
         P4ExternTypeAttributeProp.dump_to_p4 = dump_to_p4_P4ExternTypeAttributeProp
+        P4ExternTypeAttributeLocals.dump_to_p4 = dump_to_p4_P4ExternTypeAttributeLocals
         P4ExternTypeMethod.dump_to_p4 = dump_to_p4_P4ExternTypeMethod
         P4ExternTypeMethodAccess.dump_to_p4 = dump_to_p4_P4ExternTypeMethodAccess
 
         P4ExternInstanceAttribute.dump_to_p4 = dump_to_p4_P4ExternInstanceAttribute
 
         P4RefExpression.dump_to_p4 = dump_to_p4_P4RefExpression
-        P4FieldRefExpression.dump_to_p4 = dump_to_p4_P4FieldRefExpression
-        P4HeaderRefExpression.dump_to_p4 = dump_to_p4_P4HeaderRefExpression
+        P4StructRefExpression.dump_to_p4 = dump_to_p4_P4StructRefExpression
+        P4ArrayRefExpression.dump_to_p4 = dump_to_p4_P4ArrayRefExpression
         P4String.dump_to_p4 = dump_to_p4_P4String
         P4Integer.dump_to_p4 = dump_to_p4_P4Integer
-        P4Bool.dump_to_p4 = dump_to_p4_P4Bool
         P4TypedRefExpression.dump_to_p4 = dump_to_p4_P4TypedRefExpression
         P4UserHeaderRefExpression.dump_to_p4 = dump_to_p4_P4UserHeaderRefExpression
         P4UserMetadataRefExpression.dump_to_p4 = dump_to_p4_P4UserMetadataRefExpression
         P4UserExternRefExpression.dump_to_p4 = dump_to_p4_P4UserExternRefExpression
+        P4CastExpression.dump_to_p4 = dump_to_p4_P4CastExpression
 
-        P4BoolBinaryExpression.dump_to_p4 = dump_to_p4_P4BoolBinaryExpression
-        P4BoolUnaryExpression.dump_to_p4 = dump_to_p4_P4BoolUnaryExpression
         P4BinaryExpression.dump_to_p4 = dump_to_p4_P4BinaryExpression
         P4UnaryExpression.dump_to_p4 = dump_to_p4_P4UnaryExpression
         P4ValidExpression.dump_to_p4 = dump_to_p4_P4ValidExpression
+        P4TernaryExpression.dump_to_p4 = dump_to_p4_P4TernaryExpression
 
         P4ParserExtract.dump_to_p4 = dump_to_p4_P4ParserExtract
         P4ParserSetMetadata.dump_to_p4 = dump_to_p4_P4ParserSetMetadata
@@ -154,9 +156,11 @@ class P4HlirDumper:
 
         P4UpdateVerify.dump_to_p4 = dump_to_p4_P4UpdateVerify
 
-        P4ParserException.dump_to_p4 = dump_to_p4_P4ParserException
-        P4ParserExceptionDrop.dump_to_p4 = dump_to_p4_P4ParserExceptionDrop
-        P4ParserExceptionReturn.dump_to_p4 = dump_to_p4_P4ParserExceptionReturn
+        # P4ParserException.dump_to_p4 = dump_to_p4_P4ParserException
+        # P4ParserExceptionDrop.dump_to_p4 = dump_to_p4_P4ParserExceptionDrop
+        # P4ParserExceptionReturn.dump_to_p4 = dump_to_p4_P4ParserExceptionReturn
+
+        P4Assignment.dump_to_p4 = dump_to_p4_P4Assignment
 
     def dump_to_p4(self, hlir, p4_program, primitives):
         self._dump_std_primitives(hlir, _decode_dict(primitives))
@@ -164,17 +168,31 @@ class P4HlirDumper:
 
 
     def _dump_std_primitives(self, hlir, primitives):
-        p4_types = {
-            "header_instance" : p4_header_instance,
-            "int" : int,
-            "table_entry_data" : p4_table_entry_data,
-            "field" : p4_field,
-            "field_list" : p4_field_list,
-            "field_list_calculation" : p4_field_list_calculation,
-            "counter" : p4_counter,
-            "meter" : p4_meter,
-            "register" : p4_register,
-        }
+        type_ = {}
+
+        def transform_types(json_type, json_access):
+            if json_type == "int" and json_access == "read":
+                return {int, p4_sized_integer, p4_table_entry_data, p4_field, p4_register_ref}
+            elif json_type == "int" and json_access == "write":
+                return {p4_field, p4_register_ref}
+            elif json_type == "header":
+                return {p4_header_instance}
+            elif json_type == "any_header":
+                return {p4_header_instance}
+            elif json_type == "field_list":
+                return {p4_field_list}
+            elif json_type == "field_list_calculation":
+                return {p4_field_list_calculation}
+            elif json_type == "counter":
+                return {p4_counter}
+            elif json_type == "meter":
+                return {p4_meter}
+            elif json_type == "register":
+                return {p4_register}
+            elif json_type == "header_stack":
+                return {p4_header_stack}
+            else:
+                assert(0)
 
         for name, data in primitives.items():
             properties = data["properties"]
@@ -185,15 +203,16 @@ class P4HlirDumper:
                 access = P4_WRITE if props["access"] == "write" else\
                          P4_READ
                 signature_flags[formal]["access"] = access
-                type_ = {p4_types[t] for t in props["type"]}
+                type_ = transform_types(props["type"], props["access"])
                 signature_flags[formal]["type"] = type_
                 if "optional" in props:
                     signature_flags[formal]["optional"] = props["optional"]
                 if "data_width" in props:
                     signature_flags[formal]["data_width"] = props["data_width"]
             g_action = p4_action(hlir,
-                                    name, signature = signature,
-                                    signature_flags = signature_flags)
+                                 name, signature = signature,
+                                 data_widths = [],
+                                 signature_flags = signature_flags)
 
 def dump_to_p4_P4Program(self, hlir):
     for obj in self.objects:
@@ -204,24 +223,20 @@ def dump_to_p4_P4HeaderType(self, hlir):
     attributes = OrderedDict()
     total_length = 0
     flex_width = False
-    for field, width, attrs in self.layout:
+    for field, type_spec in self.layout:
+        width = type_spec.get_width()
         attributes[field] = set()
-        for attr in attrs:
-            if attr == "signed":
-                attributes[field].add(P4_SIGNED)
-            elif attr == "saturating":
-                attributes[field].add(P4_SATURATING)
-            else:
-                assert(False)
-        if width == "*":
+        if type_spec.is_signed():
+            attributes[field].add(P4_SIGNED)
+        elif type_spec.is_saturating():
+            attributes[field].add(P4_SATURATING)
+        if type_spec.is_varbit():
             layout[field] = P4_AUTO_WIDTH
             flex_width = True
         else:
-            layout[field] = width.i
-            total_length += width.i
+            layout[field] = width
+        total_length += width
     optional_attributes = {}
-    if self.max_length:
-        max_length = self.max_length.dump_to_p4(hlir)
     if self.length:
         length = self.length.dump_to_p4(hlir)
     if not flex_width and total_length % 8 != 0:
@@ -233,36 +248,40 @@ def dump_to_p4_P4HeaderType(self, hlir):
         assert(not self.length and not self.max_length)
     if not self.length:
         length = total_length / 8
-    if not self.max_length:
-        max_length = total_length / 8
+    max_length = total_length / 8
     g_header = p4_header(hlir, 
                             self.name, layout = layout, attributes = attributes,
                             filename = self.filename, lineno = self.lineno,
                             length = length, max_length = max_length)
     g_header._pragmas = self._pragmas.copy()
                  
+def dump_to_p4_P4HeaderStack(self, hlir):
+        g_header_stack = p4_header_stack(
+            hlir,
+            self.name, header_type = self.header_type,
+            size = self.size.dump_to_p4(hlir),
+            filename = self.filename, lineno = self.lineno
+        )
+        g_header_stack._pragmas = self._pragmas.copy()
+
 
 def dump_to_p4_P4HeaderInstance(self, hlir):
     pass
 
+
 def dump_to_p4_P4HeaderInstanceRegular(self, hlir):
-    if self.size:
-        index_range = range(0, self.size.i) + [P4_NEXT, P4_LAST]
-        max_index = self.size.i - 1
-    else:
-        index_range = [None]
-        max_index = None
-    for idx in index_range:
-        virtual = False if idx == None or type(idx) is int else True
-        g_header_instance = p4_header_instance(
-            hlir,
-            self.name, header_type = self.header_type,
-            index = idx, max_index = max_index,
-            filename = self.filename, lineno = self.lineno,
-            metadata = False, initializer = {},
-            virtual = virtual
-        )
-        g_header_instance._pragmas = self._pragmas.copy()
+    max_index = None
+    virtual = False
+    idx = None
+    g_header_instance = p4_header_instance(
+        hlir,
+        self.name, header_type = self.header_type,
+        index = idx, max_index = max_index,
+        filename = self.filename, lineno = self.lineno,
+        metadata = False, initializer = {},
+        virtual = virtual
+    )
+    g_header_instance._pragmas = self._pragmas.copy()
                           
 
 def dump_to_p4_P4HeaderInstanceMetadata(self, hlir):
@@ -429,20 +448,22 @@ def dump_to_p4_P4Register(self, hlir):
     )
     g_register._pragmas = self._pragmas.copy()
 
-def dump_to_p4_P4PrimitiveAction(self, hlir):
-    # primitive actions are not being dealt with here, but the info is read
-    # directly from the json
-    pass
-
 def dump_to_p4_P4ActionFunction(self, hlir):
-    signature = self.formals
+    signature = []
+    data_widths = []
+    for n, t in self.formals:
+        signature.append(n)
+        p4_type = t.p4_type
+        # TODO: temporary
+        assert(p4_type.is_integer_type())
+        data_widths.append(p4_type.width)
     call_sequence = [call.dump_to_p4(hlir) for call in self.action_body]
     g_action = p4_action(
         hlir,
         self.name,
         filename = self.filename,
         lineno = self.lineno,
-        signature = signature,
+        signature = signature, data_widths = data_widths,
         call_sequence = call_sequence
     )
     g_action._pragmas = self._pragmas.copy()
@@ -610,20 +631,6 @@ def dump_to_p4_P4RefExpression(self, hlir):
         return self.name + "[0]"
     return self.name
 
-def dump_to_p4_P4FieldRefExpression(self, hlir):
-    if self.header_ref == "latest":
-        return "latest." + self.field
-    else:
-        return self.header_ref.dump_to_p4(hlir) + "." + self.field
-
-def dump_to_p4_P4HeaderRefExpression(self, hlir):
-    if self.idx and type(self.idx) is str:
-        return self.name + "[" + self.idx + "]"
-    elif self.idx:
-        return self.name + "[" + str(self.idx.i) + "]"
-    else:
-        return self.name
-
 def dump_to_p4_P4ParserExtract(self, hlir):
     return ("extract", self.header_ref.dump_to_p4(hlir))
 
@@ -671,18 +678,6 @@ def dump_to_p4_P4Integer(self, hlir):
     else:
         return p4_sized_integer(self.i, self.width)
 
-def dump_to_p4_P4Bool(self, hlir):
-    return self.b
-
-def dump_to_p4_P4BoolBinaryExpression(self, hlir):
-    left = self.left.dump_to_p4(hlir)
-    right = self.right.dump_to_p4(hlir)
-    return p4_expression(left = left, op = self.op, right = right)
-
-def dump_to_p4_P4BoolUnaryExpression(self, hlir):
-    right = self.right.dump_to_p4(hlir)
-    return p4_expression(left = None, op = self.op, right = right)
-
 def dump_to_p4_P4ValidExpression(self, hlir):
     right = self.header_ref.dump_to_p4(hlir)
     return p4_expression(left = None, op = "valid", right = right)
@@ -698,6 +693,14 @@ def dump_to_p4_P4BinaryExpression(self, hlir):
 
     return p4_expression(left = left, op = self.op, right = right)
 
+def dump_to_p4_P4TernaryExpression(self, hlir):
+    left = self.left.dump_to_p4(hlir)
+    right = self.right.dump_to_p4(hlir)
+    cond = self.cond.dump_to_p4(hlir)
+
+    # hack to avoid having to change HLIR
+    return p4_expression(left = left, op = cond, right = right)
+
 def dump_to_p4_P4UnaryExpression(self, hlir):
     right = self.right.dump_to_p4(hlir)
     if type(right) is int:
@@ -706,25 +709,55 @@ def dump_to_p4_P4UnaryExpression(self, hlir):
 
     return p4_expression(left = None, op = self.op, right = right)
 
+def dump_to_p4_P4CastExpression(self, hlir):
+    return self.right.dump_to_p4(hlir)
+
+def dump_to_p4_P4StructRefExpression(self, hlir):
+    # TODO: P4String?
+    if self.struct == "latest":
+        assert(0)
+        return "latest." + self.field
+    else:
+        return self.struct.dump_to_p4(hlir) + "." + self.field
+
+def dump_to_p4_P4ArrayRefExpression(self, hlir):
+    array_type = self.array.p4_type
+    if array_type.type_ == Types.register:
+        reg_name, reg_idx = self.array.dump_to_p4(hlir), self.index.dump_to_p4(hlir)
+        # str for action parameter
+        assert(type(reg_idx) in {int, str, p4_expression})
+        return p4_register_ref(hlir, reg_name, reg_idx)
+    elif array_type.type_ == Types.header_stack:
+        # next, last
+        name = self.array.dump_to_p4(hlir)
+        if self.index in {"last", "next"}:
+            idx = self.index
+        else:
+            idx = self.index.dump_to_p4(hlir)
+            assert(type(idx) is int)
+        return name + "[" + str(idx) + "]"
+    else:
+        assert(0)
+
 def dump_to_p4_P4CurrentExpression(self, hlir):
     return (self.offset.dump_to_p4(hlir), self.width.dump_to_p4(hlir))
 
-def dump_to_p4_P4ParserException(self, hlir):
-    set_statements = [statement.dump_to_p4(hlir) for statement in self.set_statements]
-    return_or_drop = self.return_or_drop.dump_to_p4(hlir)
-    g_parser_exception = p4_parser_exception(
-        hlir,
-        self.name,
-        set_statements = set_statements,
-        return_or_drop = return_or_drop
-    )
-    g_parser_exception._pragmas = self._pragmas.copy()
+# def dump_to_p4_P4ParserException(self, hlir):
+#     set_statements = [statement.dump_to_p4(hlir) for statement in self.set_statements]
+#     return_or_drop = self.return_or_drop.dump_to_p4(hlir)
+#     g_parser_exception = p4_parser_exception(
+#         hlir,
+#         self.name,
+#         set_statements = set_statements,
+#         return_or_drop = return_or_drop
+#     )
+#     g_parser_exception._pragmas = self._pragmas.copy()
         
-def dump_to_p4_P4ParserExceptionDrop(self, hlir):
-    return P4_PARSER_DROP
+# def dump_to_p4_P4ParserExceptionDrop(self, hlir):
+#     return P4_PARSER_DROP
 
-def dump_to_p4_P4ParserExceptionReturn(self, hlir):
-    return self.control_function.dump_to_p4(hlir)
+# def dump_to_p4_P4ParserExceptionReturn(self, hlir):
+#     return self.control_function.dump_to_p4(hlir)
 
 def eval_P4BinaryExpression(self, hlir):
     left = self.left.dump_to_p4(hlir)
@@ -748,10 +781,7 @@ def dump_to_p4_P4ExternTypeAttribute(self, hlir, attributes, methods):
     attributes += [(self.name, properties)]
 
 def dump_to_p4_P4ExternTypeAttributeProp(self, hlir):
-    # TODO: avoid this switch
-    if isinstance(self.value, list):
-        value = [v.dump_to_p4(hlir) for v in self.value]
-    elif isinstance(self.value, P4TypeSpec):
+    if isinstance(self.value, P4TypeSpec):
         # TODO: fix this
         value = self.value
     elif isinstance(self.value, bool):
@@ -759,6 +789,9 @@ def dump_to_p4_P4ExternTypeAttributeProp(self, hlir):
     else:
         assert(0)
     return (self.name, value)
+
+def dump_to_p4_P4ExternTypeAttributeLocals(self, hlir):
+    return self.name, [v for t, v in self.value]
 
 def dump_to_p4_P4ExternTypeMethod(self, hlir, attributes, methods):
     access = defaultdict(set)
@@ -812,3 +845,7 @@ def dump_to_p4_P4UserMetadataRefExpression(self, hlir):
 
 def dump_to_p4_P4UserExternRefExpression(self, hlir):
     return self.name
+
+def dump_to_p4_P4Assignment(self, hlir):
+    arg_list = [arg.dump_to_p4(hlir) for arg in (self.target, self.value)]
+    return ("modify_field", arg_list)

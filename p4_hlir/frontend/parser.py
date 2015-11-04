@@ -31,7 +31,7 @@ class P4Parser:
         self.parser = yacc.yacc(
             module = self,
             write_tables=0,
-            debug=False,
+            debug=True,
             start = start,
             **silent
         )
@@ -52,6 +52,7 @@ class P4Parser:
     ##
     precedence = (
         ('left', 'RPAREN'),
+        ('right', 'TERNARY'),
         ('left', 'LOR'),
         ('left', 'LAND'),
         ('left', 'OR'),
@@ -63,6 +64,7 @@ class P4Parser:
         ('left', 'PLUS', 'MINUS'),
         ('left', 'TIMES', 'DIVIDE', 'MOD'),
         ('right', 'UMINUS'),
+        ('right', 'CAST'),
         ('right', 'VALID'),
         ('right', 'NOT'),
         ('right', 'LNOT'),
@@ -145,40 +147,41 @@ class P4Parser:
                       | deprecated_types
                       | data_type_spec
         """
-        if isinstance(p[1], P4TypeSpec):
+        if isinstance(p[1], tuple):
             p[0] = p[1]
         else:
             type_name = p[1]
-            qualifiers = {}
+            specifiers = {}
             if type_name == "header":
-                qualifiers["subtype"] = p[2]
+                specifiers["subtype"] = p[2]
             elif type_name == "metadata":
-                qualifiers["subtype"] = p[2]
+                specifiers["subtype"] = p[2]
             elif type_name == "extern":
-                qualifiers["subtype"] = p[2]
-            p[0] = P4TypeSpec(self.get_filename(), p.lineno(1), type_name, qualifiers)
+                specifiers["subtype"] = p[2]
+            p[0] = (type_name, specifiers)
 
     def p_data_type_spec(self, p):
-        """ data_type_spec : INT
-                           | VOID
-                           | BIT
+        """ data_type_spec : BIT
+                           | INT LT const_value GT
                            | BIT LT const_value GT
-                           | BIT LT const_value COMMA field_mod_list GT
                            | VARBIT LT const_value GT
         """
         type_name = p[1]
-        qualifiers = {}
+        specifiers = {}
         if type_name == "bit":
             if len(p) > 2:
-                qualifiers["width"] = p[3].i
-                if len(p) > 5:
-                    for elem in p[5]:
-                        qualifiers[elem] = True
+                specifiers["width"] = p[3].i
             else:
-                qualifiers["width"] = 1
+                specifiers["width"] = 1
+        elif type_name == "int":
+            type_name = "bit"
+            specifiers["width"] = p[3].i
+            specifiers["signed"] = True
         elif type_name == "varbit":
-            qualifiers["width"] = p[3].i
-        p[0] = P4TypeSpec(self.get_filename(), p.lineno(1), type_name, qualifiers)
+            specifiers["width"] = p[3].i
+        else:
+            assert(0)
+        p[0] = (type_name, specifiers)
 
     def p_deprecated_types(self, p):
         """ deprecated_types : COUNTER
@@ -194,6 +197,30 @@ class P4Parser:
         #       should be removed
         p[0] = p[1]
 
+    def p_type_declaration(self, p):
+        """ type_declaration : type_qualifiers type_spec
+        """
+        type_name, specifiers = p[2]
+        p[0] = P4TypeSpec(self.get_filename(), p.lineno(1),
+                          type_name, specifiers, p[1])
+
+    def p_type_qualifiers_1(self, p):
+        """ type_qualifiers : empty
+        """
+        p[0] = set()
+
+    def p_type_qualifiers_2(self, p):
+        """ type_qualifiers : type_qualifier type_qualifiers
+        """
+        p[0] = p[1] | p[2]
+
+    def p_type_qualifier(self, p):
+        """ type_qualifier : IN
+                           | OUT
+                           | INOUT
+                           | OPTIONAL
+        """
+        p[0] = {p[1]}
 
     # PARAMETER LISTS
     def p_parameter_list_1(self, p):
@@ -207,19 +234,9 @@ class P4Parser:
         p[0] = [p[1]]
 
     def p_parameter(self, p):
-        """ parameter : parameter_qualifier type_spec ID 
+        """ parameter : type_declaration ID 
         """
-        p[0] = (p[3],p[2],p[1])
-
-    def p_parameter_qualifier(self, p):
-        """ parameter_qualifier : IN
-                                | OUT
-                                | INOUT
-                                | OPTIONAL IN
-                                | OPTIONAL OUT
-                                | OPTIONAL INOUT
-        """
-        p[0] = set(p[1:])
+        p[0] = (p[2],p[1])
 
     # HEADER TYPE
 
@@ -271,7 +288,7 @@ class P4Parser:
                          "invalid field list in header_type declaration")
 
     def p_header_length_opt_1(self, p):
-        """ header_length_opt : LENGTH COLON length_exp SEMI
+        """ header_length_opt : LENGTH COLON general_exp SEMI
         """
         p[0] = p[3]
 
@@ -330,60 +347,18 @@ class P4Parser:
         """
         p[0] = p[1] + [p[2]]
 
-    def p_field_dec_1(self, p):
-        """ field_dec : ID COLON bit_width SEMI
+    def p_field_dec(self, p):
+        """ field_dec : data_type_spec ID SEMI
         """
-        p[0] = (p[1], p[3], []) # 3-tuple name, width, attributes
-
-    def p_field_dec_2(self, p):
-        """ field_dec : ID COLON bit_width LPAREN field_mod_list RPAREN SEMI
-        """
-        p[0] = (p[1], p[3], p[5])
+        type_name, specifiers = p[1]
+        p[0] = (p[2], P4TypeSpec(self.get_filename(), p.lineno(1),
+                                 type_name, specifiers, set()))
 
     def p_field_dec_error_1(self, p):
-        """ field_dec : ID COLON error SEMI
-        """
-        self.print_error(p.lineno(1),
-                         "invalid bit width in field declaration, "\
-                         "must be positive constant value or *")
-
-    def p_field_dec_error_2(self, p):
-        """ field_dec : ID COLON bit_width LPAREN error RPAREN SEMI
-        """
-        self.print_error(p.lineno(1),
-                         "invalid field modifiers list in field declaration")
-
-    def p_field_dec_error_3(self, p):
         """ field_dec : error SEMI
         """
         self.print_error(p.lineno(1),
                          "invalid field declaration")
-
-    def p_field_mod_list_1(self, p):
-        """ field_mod_list : field_mod
-        """
-        p[0] = [p[1]]
-
-    def p_field_mod_list_2(self, p):
-        """ field_mod_list : field_mod_list COMMA field_mod
-        """
-        p[0] = p[1] + [p[3]]
-
-    def p_field_mod(self, p):
-        """ field_mod : SIGNED
-                      | SATURATING
-        """
-        p[0] = p[1]  # "signed", "saturating"
-
-    def p_bit_width_1(self, p):
-        """ bit_width : const_value
-        """
-        p[0] = p[1]
-
-    def p_bit_width_2(self, p):
-        """ bit_width : TIMES
-        """
-        p[0] = p[1]   # "*"
 
     def p_const_value_1(self, p):
         """ const_value : INT_CONST_HEX
@@ -395,70 +370,42 @@ class P4Parser:
         """
         p[0] = P4Integer(self.get_filename(), p.lineno(1), int(p[1], 10))
 
-    def p_const_value_with_width_1(self, p):
-        """ const_value_with_width : INT_CONST_DEC APOSTROPHE INT_CONST_DEC
+    def p_const_value_3(self, p):
+        """ const_value : const_value_with_width
         """
-        p[0] = P4Integer(self.get_filename(), p.lineno(1),
-                         int(p[3], 10), int(p[1], 10))
+        p[0] = p[1]
+
+    def get_integer_with_width(self, filename, lineno, s, base):
+        if 's' in s:
+            signed = True
+            d = 's'
+        else:
+            signed = False
+            d = 'w'
+        w, v = s.split(d)
+        w = int(w, 10)
+        v = int(v, base)
+        return P4Integer(filename, lineno, v, w, signed)
+
+    def p_const_value_with_width_1(self, p):
+        """ const_value_with_width : INT_CONST_HEX_W
+        """
+        p[0] = self.get_integer_with_width(self.get_filename(), p.lineno(1), p[1], 16)
 
     def p_const_value_with_width_2(self, p):
-        """ const_value_with_width : INT_CONST_DEC APOSTROPHE INT_CONST_HEX
+        """ const_value_with_width : INT_CONST_DEC_W
         """
-        p[0] = P4Integer(self.get_filename(), p.lineno(1),
-                         int(p[3], 16), int(p[1], 10))
+        p[0] = self.get_integer_with_width(self.get_filename(), p.lineno(1), p[1], 10)
 
     def p_bool_value(self, p):
         """ bool_value : TRUE
                        | FALSE
         """
-        value = (p[1] == "true")
-        p[0] = P4Bool(self.get_filename(), p.lineno(1), value)
-
-    def p_length_exp(self, p):
-        """ length_exp : arith_exp
-        """
-        p[0] = p[1]
-
-    def p_arith_exp_1(self, p):
-        """ arith_exp : arith_exp PLUS arith_exp
-                      | arith_exp MINUS arith_exp
-                      | arith_exp TIMES arith_exp
-                      | arith_exp LSHIFT arith_exp
-                      | arith_exp RSHIFT arith_exp
-                      | arith_exp AND arith_exp
-                      | arith_exp OR arith_exp
-                      | arith_exp XOR arith_exp
-
-        """
-        p[0] = P4BinaryExpression(self.get_filename(), p.lineno(1),
-                                  p[2], p[1], p[3])
-
-    def p_arith_exp_2(self, p):
-        """ arith_exp : LPAREN arith_exp RPAREN
-        """
-        p[0] = p[2]
-
-    def p_arith_exp_3(self, p):
-        """ arith_exp : NOT arith_exp
-                      | MINUS arith_exp %prec UMINUS
-                      | PLUS arith_exp %prec UMINUS
-        """
-        p[0] = P4UnaryExpression(self.get_filename(), p.lineno(1), p[1], p[2])
-
-    def p_arith_exp_4(self, p):
-        """ arith_exp : const_value
-        """
-        p[0] = p[1]
-
-    def p_arith_exp_5(self, p):
-        """ arith_exp : ID
-        """
-        p[0] = P4RefExpression(self.get_filename(), p.lineno(1), p[1])
-
-    def p_arith_exp_6(self, p):
-        """ arith_exp : field_ref
-        """
-        p[0] = p[1]
+        if p[1] == "true":
+            value = 1
+        else:
+            value = 0
+        p[0] = P4Integer(self.get_filename(), p.lineno(1), value, 1)
 
     # INSTANCE DECLARATION
 
@@ -472,15 +419,13 @@ class P4Parser:
         """ header_instance : HEADER ID ID SEMI
         """
         p[0] = P4HeaderInstanceRegular(self.get_filename(), p.lineno(1),
-                                       p[2],
-                                       p[3])
+                                       p[2], p[3])
 
     def p_header_instance_2(self, p):
         """ header_instance : HEADER ID ID LBRACKET const_value RBRACKET SEMI
         """
-        p[0] = P4HeaderInstanceRegular(self.get_filename(), p.lineno(1),
-                                       p[2],
-                                       p[3], size = p[5])
+        p[0] = P4HeaderStack(self.get_filename(), p.lineno(1),
+                             p[2], p[3], size = p[5])
 
     def p_header_instance_error_1(self, p):
         """ header_instance : HEADER error SEMI
@@ -605,12 +550,6 @@ class P4Parser:
         p[0] = []
 
     def p_field_list_entry_1(self, p):
-        """ field_list_entry : const_value
-        """
-        p[0] = p[1]
-
-    # temp thing: support for explicit width only for field_list entries
-    def p_field_list_entry_11(self, p):
         """ field_list_entry : const_value_with_width
         """
         p[0] = p[1]
@@ -621,55 +560,29 @@ class P4Parser:
         p[0] = P4String(self.get_filename(), p.lineno(1), p[1])   # "payload"
 
     def p_field_list_entry_3(self, p):
-        """ field_list_entry : field_ref
+        """ field_list_entry : identifier
         """
         p[0] = p[1]
 
-    def p_field_list_entry_4(self, p):
-        """ field_list_entry : header_ref
+    def p_identifier_1(self, p):
+        """ identifier : ID
+                       | LATEST
         """
-        p[0] = p[1]
-
-    # this rule is now useless, it is taken care of by the above one, although
-    # it is a bit messy
-    # def p_field_list_entry_5(self, p):
-    #     """ field_list_entry : ID SEMI
-    #     """
-    #     pass
-
-    def p_header_ref_1(self, p):
-        """ header_ref : ID
-        """
-        # not necessarily a header ref, namespace conflict, damn
         p[0] = P4RefExpression(self.get_filename(), p.lineno(1), p[1])
 
-    def p_header_ref_2(self, p):
-        """ header_ref : ID LBRACKET index RBRACKET
+    def p_identifier_2(self, p):
+        """ identifier : identifier LBRACKET general_exp RBRACKET
+                       | identifier LBRACKET LAST RBRACKET
+                       | identifier LBRACKET NEXT RBRACKET
         """
-        p[0] = P4HeaderRefExpression(self.get_filename(), p.lineno(1),
-                                     p[1], p[3])
-
-    def p_header_error_1(self, p):
-        """ header_ref : ID LBRACKET error RBRACKET
-        """
-        self.print_error(p.lineno(1),
-                         "Invalid index in array header reference")
-        
-    def p_header_index_1(self, p):
-        """ index : const_value
-        """
-        p[0] = p[1]
-
-    def p_header_index_2(self, p):
-        """ index : LAST
-        """
-        p[0] = p[1]   # "last"
-
-    def p_field_ref(self, p):
-        """ field_ref : header_ref PERIOD ID
-        """
-        p[0] = P4FieldRefExpression(self.get_filename(), p.lineno(2),
+        p[0] = P4ArrayRefExpression(self.get_filename(), p.lineno(2),
                                     p[1], p[3])
+
+    def p_identifier_3(self, p):
+        """ identifier : identifier PERIOD ID
+        """
+        p[0] = P4StructRefExpression(self.get_filename(), p.lineno(2),
+                                     p[1], p[3])
     
     
     # FIELD LIST CALCULATION
@@ -724,7 +637,7 @@ class P4Parser:
         p[0] = p[1]
 
     def p_calculated_field_declaration(self, p):
-        """ calculated_field_declaration : CALCULATED_FIELD field_ref LBRACE \
+        """ calculated_field_declaration : CALCULATED_FIELD identifier LBRACE \
                                              update_verify_spec_list \
                                            RBRACE
         """
@@ -744,7 +657,7 @@ class P4Parser:
                          "Invalid update / verify list in calculated field declaration")
 
     def p_calculated_field_declaration_error_3(self, p):
-        """ calculated_field_declaration : CALCULATED_FIELD field_ref error
+        """ calculated_field_declaration : CALCULATED_FIELD identifier error
         """
         self.print_error(p.lineno(1),
                          "Invalid calculated field declaration")
@@ -817,7 +730,7 @@ class P4Parser:
         p[0] = p[1]
 
     def p_if_cond(self, p):
-        """ if_cond : IF LPAREN calc_bool_cond RPAREN
+        """ if_cond : IF LPAREN general_exp RPAREN
         """
         p[0] = p[3]
 
@@ -832,17 +745,6 @@ class P4Parser:
         """
         self.print_error(p.lineno(1),
                          "Invalid if condition in calculated field declaration")        
-
-    def p_calc_bool_cond_1(self, p):
-        """ calc_bool_cond : VALID LPAREN header_ref RPAREN
-        """
-        p[0] = P4ValidExpression(self.get_filename(), p.lineno(1), p[3])
-
-    def p_calc_bool_cond_2(self, p):
-        """ calc_bool_cond : field_ref EQ const_value
-        """
-        p[0] = P4BinaryExpression(self.get_filename(), p.lineno(1),
-                                  p[2], p[1], p[3])
 
     # VALUE SET
 
@@ -955,7 +857,7 @@ class P4Parser:
         p[0] = p[1]
 
     def p_extract_statement(self, p):
-        """ extract_statement : EXTRACT LPAREN header_extract_ref RPAREN
+        """ extract_statement : EXTRACT LPAREN identifier RPAREN
         """
         p[0] = P4ParserExtract(self.get_filename(), p.lineno(1), p[3])
 
@@ -973,7 +875,7 @@ class P4Parser:
 
     def p_set_statement(self, p):
         """ set_statement : SET_METADATA \
-                                LPAREN field_ref COMMA metadata_expr RPAREN
+                                LPAREN identifier COMMA metadata_expr RPAREN
         """
         p[0] = P4ParserSetMetadata(self.get_filename(), p.lineno(1),
                                    p[3], p[5])
@@ -986,39 +888,33 @@ class P4Parser:
 
     def p_set_statement_error_2(self, p):
         """ set_statement : SET_METADATA \
-                                LPAREN field_ref COMMA error RPAREN
+                                LPAREN identifier COMMA error RPAREN
         """
         self.print_error(p.lineno(1),
                          "Invalid expression in set_metadata statement")
 
-    def p_header_extract_ref_1(self, p):
-        """ header_extract_ref : ID
-        """
-        p[0] = P4HeaderRefExpression(self.get_filename(), p.lineno(1), p[1])
+    # def p_header_extract_ref_1(self, p):
+    #     """ header_extract_ref : ID
+    #     """
+    #     p[0] = P4HeaderRefExpression(self.get_filename(), p.lineno(1), p[1])
 
-    def p_header_extract_ref_2(self, p):
-        """ header_extract_ref : ID LBRACKET const_value RBRACKET
-        """
-        p[0] = P4HeaderRefExpression(self.get_filename(), p.lineno(1),
-                                     p[1], p[3])
+    # def p_header_extract_ref_2(self, p):
+    #     """ header_extract_ref : ID LBRACKET const_value RBRACKET
+    #     """
+    #     p[0] = P4HeaderRefExpression(self.get_filename(), p.lineno(1),
+    #                                  p[1], p[3])
 
-    def p_header_extract_ref_3(self, p):
-        """ header_extract_ref : ID LBRACKET NEXT RBRACKET
-        """
-        p[0] = P4HeaderRefExpression(self.get_filename(), p.lineno(1),
-                                     p[1], p[3])   # "next"
+    # def p_header_extract_ref_3(self, p):
+    #     """ header_extract_ref : ID LBRACKET NEXT RBRACKET
+    #     """
+    #     p[0] = P4HeaderRefExpression(self.get_filename(), p.lineno(1),
+    #                                  p[1], p[3])   # "next"
 
 
     def p_metadata_expr_1(self, p):
-        """ metadata_expr : arith_exp
+        """ metadata_expr : general_exp
         """
         p[0] = p[1]
-
-    def p_metadata_expr_2(self, p):
-        """ metadata_expr : LATEST PERIOD ID
-        """
-        p[0] = P4FieldRefExpression(self.get_filename(), p.lineno(1),
-                                    p[1], p[3])   # "latest" is header ref
 
     def p_metadata_expr_3(self, p):
         """ metadata_expr : CURRENT LPAREN const_value COMMA const_value RPAREN
@@ -1075,15 +971,9 @@ class P4Parser:
         p[0] = p[1] + [p[3]]
 
     def p_select_field_ref_1(self, p):
-        """ select_field_ref : field_ref
+        """ select_field_ref : identifier
         """
         p[0] = p[1]
-
-    def p_select_field_ref_2(self, p):
-        """ select_field_ref : LATEST PERIOD ID
-        """
-        p[0] = P4FieldRefExpression(self.get_filename(), p.lineno(1),
-                                    p[1], p[3])   # "latest" is header ref
 
     def p_select_field_ref_3(self, p):
         """ select_field_ref : CURRENT LPAREN const_value COMMA const_value RPAREN
@@ -1146,15 +1036,6 @@ class P4Parser:
         """ return_value_type : ID
         """
         p[0] = P4RefExpression(self.get_filename(), p.lineno(1), p[1])
-
-    def p_return_value_type_2(self, p):
-        """ return_value_type : PARSE_ERROR ID
-        """
-        # TODO
-        p[0] = P4ParserParseError(
-            self.get_filename(), p.lineno(1),
-            P4RefExpression(self.get_filename(), p.lineno(2), p[2])
-        )
 
     def p_return_immediate_statement(self, p):
         """ return_immediate_statement : return_value_type SEMI
@@ -1334,7 +1215,7 @@ class P4Parser:
         pass # None
 
     def p_direct_result_2(self, p):
-        """ direct_result : RESULT COLON field_ref SEMI
+        """ direct_result : RESULT COLON identifier SEMI
         """
         p[0] = p[3]
 
@@ -1343,7 +1224,6 @@ class P4Parser:
         """
         self.print_error(p.lineno(1),
                          "Invalid result attribute for meter")
-
 
     # REGISTER
 
@@ -1439,57 +1319,6 @@ class P4Parser:
                                | SATURATING
         """
         p[0] = p[1]  # "signed", "saturating"
-
-
-    # PRIMITIVE ACTION
-
-    def p_p4_declaration_11(self, p):
-        """ p4_declaration : primitive_action_declaration
-        """
-        # TODO not supported because still changing
-        p[0] = p[1]
-
-    def p_primitive_action_declaration_1(self, p):
-        """ primitive_action_declaration : PRIMITIVE_ACTION ID \
-                                           LPAREN RPAREN SEMI
-        """
-        p[0] = P4PrimitiveAction(self.get_filename(), p.lineno(1), p[2])
-
-    def p_primitive_action_declaration_2(self, p):
-        """ primitive_action_declaration : PRIMITIVE_ACTION ID \
-                                           LPAREN param_list RPAREN SEMI
-        """
-        p[0] = P4PrimitiveAction(self.get_filename(), p.lineno(1), p[2], p[4])
-
-    def p_primitive_action_declaration_error_1(self, p):
-        """ primitive_action_declaration : PRIMITIVE_ACTION ID \
-                                           LPAREN error RPAREN SEMI
-        """
-        self.print_error(p.lineno(1),
-                         "Invalid param list for primitive action %s" % p[2])
-
-    def p_primitive_action_declaration_error_2(self, p):
-        """ primitive_action_declaration : PRIMITIVE_ACTION error SEMI
-        """
-        self.print_error(p.lineno(1),
-                         "Invalid primitive action declaration")
-
-    def p_primitive_action_declaration_error_3(self, p):
-        """ primitive_action_declaration : PRIMITIVE_ACTION error
-        """
-        self.print_error(p.lineno(1),
-                         "Invalid primitive action declaration")
-
-    def p_param_list_1(self, p):
-        """ param_list : ID
-        """
-        p[0] = [p[1]]
-
-    def p_param_list_2(self, p):
-        """ param_list : param_list COMMA ID
-        """
-        p[0] = p[1] + [p[3]]
-
     
     # ACTION FUNCTION
 
@@ -1512,7 +1341,7 @@ class P4Parser:
         """ action_function_declaration : ACTION action_header LBRACE error RBRACE
         """
         self.print_error(p.lineno(1),
-                         "Error in body of action function %s" % p[2])
+                         "Error in body of action function %s" % p[2][0])
 
     def p_action_function_declaration_error_2(self, p):
         """ action_function_declaration : ACTION error RBRACE
@@ -1530,10 +1359,9 @@ class P4Parser:
         """ action_header : ID LPAREN RPAREN
         """
         p[0] = (p[1], [])
-        pass
 
     def p_action_header_2(self, p):
-        """ action_header : ID LPAREN param_list RPAREN
+        """ action_header : ID LPAREN parameter_list RPAREN
         """
         p[0] = (p[1], p[3])
 
@@ -1553,7 +1381,17 @@ class P4Parser:
         """
         p[0] = p[1] + [p[2]]
 
-    def p_action_satement_1(self, p):
+    def p_action_statement_1(self, p):
+        """ action_statement : assignment SEMI
+        """
+        p[0] = p[1]
+
+    def p_assignment_1(self, p):
+        """ assignment : identifier ASSIGN general_exp
+        """
+        p[0] = P4Assignment(self.get_filename(), p.lineno(2), p[1], p[3])
+
+    def p_action_statement_2(self, p):
         """ action_statement : ID LPAREN RPAREN SEMI
         """
         p[0] = P4ActionCall(
@@ -1561,7 +1399,7 @@ class P4Parser:
             P4RefExpression(self.get_filename(), p.lineno(1), p[1])
         )
 
-    def p_action_satement_2(self, p):
+    def p_action_statement_3(self, p):
         """ action_statement : ID LPAREN arg_list RPAREN SEMI
         """
         p[0] = P4ActionCall(
@@ -1570,7 +1408,7 @@ class P4Parser:
             p[3]
         )
 
-    def p_action_satement_3(self, p):
+    def p_action_statement_4(self, p):
         """ action_statement : extern_method_call SEMI
         """
         p[0] = p[1]
@@ -1685,20 +1523,15 @@ class P4Parser:
         """ field_match : field_or_masked_ref COLON ID
                         | field_or_masked_ref COLON VALID
         """
-        p[0] = P4TableFieldMatch(self.get_filename(), p.lineno(1), p[1], p[3])
+        p[0] = P4TableFieldMatch(self.get_filename(), p.lineno(2), p[1], p[3])
 
     def p_field_or_masked_ref_1(self, p):
-        """ field_or_masked_ref : header_ref
+        """ field_or_masked_ref : identifier
         """
         p[0] = (p[1],)
 
     def p_field_or_masked_ref_2(self, p):
-        """ field_or_masked_ref : field_ref
-        """
-        p[0] = (p[1],)
-
-    def p_field_or_masked_ref_3(self, p):
-        """ field_or_masked_ref : field_ref MASK const_value
+        """ field_or_masked_ref : identifier MASK const_value
         """
         p[0] = (p[1], p[3])
 
@@ -1900,7 +1733,7 @@ class P4Parser:
                          "Invalid apply_table statement")
 
     def p_expression_statement_2(self, p):
-        """ expression_statement : IF LPAREN bool_exp RPAREN \
+        """ expression_statement : IF LPAREN general_exp RPAREN \
                                        control_statement \
                                    ELSE \
                                        control_statement
@@ -1918,7 +1751,7 @@ class P4Parser:
                          "Invalid boolean expression")
 
     def p_expression_statement_3(self, p):
-        """ expression_statement : IF LPAREN bool_exp RPAREN control_statement
+        """ expression_statement : IF LPAREN general_exp RPAREN control_statement
         """
         p[0] = P4ControlFunctionIfElse(self.get_filename(), p.lineno(1),
                                        p[3], p[5])
@@ -1960,7 +1793,7 @@ class P4Parser:
         self.print_error(p.lineno(1),
                          "Invalid apply_table statement")
 
-    def p_control_statement_6(self, p):
+    def p_expression_statement_6(self, p):
         """ expression_statement : extern_method_call SEMI
         """
         p[0] = p[1]
@@ -2031,46 +1864,6 @@ class P4Parser:
         p[0] = P4ControlFunctionApplyHitMissCase(
             self.get_filename(), p.lineno(1), p[1], p[2]
         )
-    
-    def p_bool_exp_1(self, p):
-        """ bool_exp : VALID LPAREN header_ref RPAREN
-        """
-        p[0] = P4ValidExpression(self.get_filename(), p.lineno(1), p[3])
-
-    def p_bool_exp_2(self, p):
-        """ bool_exp : bool_exp LOR bool_exp
-                     | bool_exp LAND bool_exp
-        """
-        p[0] = P4BoolBinaryExpression(self.get_filename(), p.lineno(1),
-                                      p[2], p[1], p[3])
-
-    def p_bool_exp_3(self, p):
-        """ bool_exp : LNOT bool_exp
-        """
-        p[0] = P4BoolUnaryExpression(self.get_filename(), p.lineno(1),
-                                     "not", p[2])
-
-    def p_bool_exp_4(self, p):
-        """ bool_exp : LPAREN bool_exp RPAREN
-        """
-        p[0] = p[2]
-
-    def p_bool_exp_5(self, p):
-        """ bool_exp : bool_value
-        """
-        p[0] = p[1]
-
-    def p_bool_exp_6(self, p):
-        """ bool_exp : arith_exp LT arith_exp
-                     | arith_exp GT arith_exp
-                     | arith_exp LE arith_exp
-                     | arith_exp GE arith_exp
-                     | arith_exp EQ arith_exp
-                     | arith_exp NE arith_exp
-        """
-        p[0] = P4BinaryExpression(self.get_filename(), p.lineno(1),
-                                  p[2], p[1], p[3])
-
 
     def p_general_exp(self, p):
         """ general_exp : expression
@@ -2093,21 +1886,21 @@ class P4Parser:
                        | expression OR expression
                        | expression XOR expression
         """
-        p[0] = P4BinaryExpression(self.get_filename(), p.lineno(1),
+        p[0] = P4BinaryExpression(self.get_filename(), p.lineno(2),
                                   p[2], p[1], p[3])
 
     def p_expression_2(self, p):
         """ expression : expression LOR expression
                        | expression LAND expression
         """
-        p[0] = P4BoolBinaryExpression(self.get_filename(), p.lineno(1),
-                                      p[2], p[1], p[3])
+        p[0] = P4BinaryExpression(self.get_filename(), p.lineno(2),
+                                  p[2], p[1], p[3])
 
     def p_expression_3(self, p):
         """ expression : LNOT expression
         """
-        p[0] = P4BoolUnaryExpression(self.get_filename(), p.lineno(1),
-                                     p[1], p[2])
+        p[0] = P4UnaryExpression(self.get_filename(), p.lineno(1),
+                                 p[1], p[2])
 
     def p_expression_4(self, p):
         """ expression : NOT expression
@@ -2128,7 +1921,7 @@ class P4Parser:
         p[0] = p[1]
 
     def p_expression_7(self, p):
-        """ expression : VALID LPAREN header_ref RPAREN
+        """ expression : VALID LPAREN identifier RPAREN
         """
         p[0] = P4ValidExpression(self.get_filename(), p.lineno(1), p[3])
 
@@ -2138,63 +1931,24 @@ class P4Parser:
         p[0] = p[1]
 
     def p_expression_9(self, p):
-        """ expression : field_ref
+        """ expression : identifier
         """
         p[0] = p[1]
 
-    # included in 'header_ref' rule
-
-    # def p_expression_10(self, p):
-    #     """ expression : ID
-    #     """
-    #     p[0] = P4RefExpression(self.get_filename(), p.lineno(1), p[1])
-
-    def p_expression_11(self, p):
-        """ expression : header_ref
+    def p_expression_10(self, p):
+        """ expression : LPAREN type_declaration RPAREN expression %prec CAST
         """
-        p[0] = p[1]
-
-    # PARSER EXCEPTIONS
-
-    def p_p4_declaration_15(self, p):
-        """ p4_declaration : PARSER_EXCEPTION ID LBRACE \
-                               set_statement_list \
-                               return_or_drop SEMI \
-                             RBRACE 
-        """
-        p[0] = P4ParserException(self.get_filename(), p.lineno(1),
-                                 p[2], p[4], p[5])
-
-    def p_return_or_drop_1(self, p):
-        """ return_or_drop : PARSER_DROP
-        """
-        p[0] = P4ParserExceptionDrop(self.get_filename(), p.lineno(1))
-
-    def p_return_or_drop_2(self, p):
-        """ return_or_drop : RETURN ID
-        """
-        p[0] = P4ParserExceptionReturn(
-            self.get_filename(), p.lineno(1),
-            P4RefExpression(self.get_filename(), p.lineno(1), p[2])
+        p[0] = P4CastExpression(
+            self.get_filename(), p.lineno(1), p[2].p4_type, p[4]
         )
 
-    def p_set_statement_list_1(self, p):
-        """ set_statement_list : empty
+    # Is the precedence correct?
+    def p_expression_11(self, p):
+        """ expression : expression QMARK expression COLON expression %prec TERNARY
         """
-        p[0] = []
-
-    def p_set_statement_list_2(self, p):
-        """ set_statement_list : set_statement_list set_statement SEMI
-        """
-        p[0] = p[1] + [p[2]]
-
-    def p_set_statement_list_error_1(self, p):
-        """ set_statement_list : set_statement_list error SEMI
-        """
-        self.print_error(p.lineno(2),
-                         "Invalid set_statement in parser exception declaration")
-        p[0] = p[1]
-
+        p[0] = P4TernaryExpression(
+            self.get_filename(), p.lineno(2), p[1], p[3], p[5]
+        )
 
     # ACTION PROFILE DECLARATION
 
@@ -2393,14 +2147,14 @@ class P4Parser:
     def p_method_access_1(self, p):
         """ method_access : method_access_type LBRACE identifier_list RBRACE
         """
-        p[0] = P4ExternTypeMethodAccess(self.get_filename(), p.lineno(1),
-                                          p[1], p[3])
+        p[0] = P4ExternTypeMethodAccess(self.get_filename(), p.lineno(2),
+                                        p[1], p[3])
 
     def p_method_access_2(self, p):
         """ method_access : method_access_type LBRACE RBRACE
         """
-        p[0] = P4ExternTypeMethodAccess(self.get_filename(), p.lineno(1),
-                                          p[1], [])
+        p[0] = P4ExternTypeMethodAccess(self.get_filename(), p.lineno(2),
+                                        p[1], [])
 
     def p_method_access_type(self, p):
         """ method_access_type : READS
@@ -2424,24 +2178,33 @@ class P4Parser:
                                            "optional", True)
 
     def p_extern_attribute_property_2(self, p):
-        """ extern_attribute_property : TYPE COLON type_spec SEMI
-                                        | TYPE COLON STRING SEMI
-                                        | TYPE COLON EXPRESSION SEMI
-                                        | TYPE COLON BLOCK SEMI
+        """ extern_attribute_property : TYPE COLON type_declaration SEMI
+                                      | TYPE COLON STRING SEMI
+                                      | TYPE COLON BLOCK SEMI
         """
         if isinstance(p[3], P4TypeSpec):
             tspec = p[3]
         else:
-            tspec = P4TypeSpec(self.get_filename(), p.lineno(1), p[3], {})
+            tspec = P4TypeSpec(self.get_filename(), p.lineno(1), p[3], {}, {})
         p[0] = P4ExternTypeAttributeProp(self.get_filename(), p.lineno(1),
-                                           "type", tspec)
+                                         "type", tspec)
 
     def p_extern_attribute_property_3(self, p):
-        """ extern_attribute_property : EXPRESSION_LOCAL_VARIABLES \
-                                          LBRACE identifier_list RBRACE
+        """ extern_attribute_property : LOCAL_VARIABLES \
+                                        LBRACE locals_list RBRACE
         """
-        p[0] = P4ExternTypeAttributeProp(self.get_filename(), p.lineno(1),
+        p[0] = P4ExternTypeAttributeLocals(self.get_filename(), p.lineno(1),
                                            "locals", p[3])
+
+    def p_locals_list_1(self, p):
+        """ locals_list : empty
+        """
+        p[0] = []
+
+    def p_locals_list_2(self, p):
+        """ locals_list : type_declaration ID SEMI locals_list
+        """
+        p[0] = [(p[1], p[2])] + p[4]
 
     def p_identifier_list(self, p):
         """ identifier_list : identifier_list COMMA ID
@@ -2496,15 +2259,13 @@ class P4Parser:
         p[0] = P4ExternInstanceAttribute(self.get_filename(), p.lineno(1), p[1], None)
 
     def p_extern_method_call_1(self, p):
-        """ extern_method_call : ID PERIOD ID LPAREN arg_list RPAREN
+        """ extern_method_call : identifier PERIOD ID LPAREN arg_list RPAREN
         """
-        p[0] = P4ExternMethodCall(self.get_filename(), p.lineno(1),
-                                    P4RefExpression(self.get_filename(), p.lineno(1), p[1]),
-                                    p[3], p[5])
+        p[0] = P4ExternMethodCall(self.get_filename(), p.lineno(2),
+                                  p[1], p[3], p[5])
 
     def p_extern_method_call_2(self, p):
-        """ extern_method_call : ID PERIOD ID LPAREN RPAREN
+        """ extern_method_call : identifier PERIOD ID LPAREN RPAREN
         """
-        p[0] = P4ExternMethodCall(self.get_filename(), p.lineno(1),
-                                    P4RefExpression(self.get_filename(), p.lineno(1), p[1]),
-                                    p[3], [])
+        p[0] = P4ExternMethodCall(self.get_filename(), p.lineno(2),
+                                  p[1], p[3], [])

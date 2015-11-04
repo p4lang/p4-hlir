@@ -13,13 +13,14 @@
 # limitations under the License.
 
 from p4_core import *
-from p4_expressions import *
+import p4_expressions
 import p4_headers
 import p4_tables
 import p4_extern
 import p4_stateful
 
 import logging
+import re
 
 
 #############################################################################
@@ -43,11 +44,39 @@ class p4_signature_ref(object):
     def __repr__(self):
         return "sig("+str(self.idx)+")"
 
+class p4_register_ref(object):
+    """
+    Class used to represent references to register cells in expressions
+    """
+    def __init__ (self, hlir, register_name, idx):
+        self.idx = idx
+        self.register_name = register_name
+        self.register = None
+
+        hlir._p4_register_refs.append(self)
+
+    @staticmethod
+    def get_from_hlir(hlir, name):
+        # If this fails, an exception will be raised, which is exactly what we
+        # want: the exception will be catched when trying to resolve action
+        # primitive parameters
+        m = re.match(r"(\w+)\[(.*)\]", name)
+        register_name, register_idx = m.group(1), m.group(2)
+        register_idx = int(register_idx)
+        reg_ref = p4_register_ref(hlir, register_name, register_idx)
+        return reg_ref
+
+    def build(self, hlir):
+        self.register = p4_stateful.p4_register.get_from_hlir(hlir, self.register_name)
+
+    def __str__(self):
+        return self.register_name + "["+str(self.idx)+"]"
+
 class p4_action (p4_object):
     """
     TODO
     """
-    required_attributes = ["name", "signature"]
+    required_attributes = ["name", "signature", "data_widths"]
     allowed_attributes = required_attributes + ["call_sequence", "signature_flags"]
 
     def __init__ (self, hlir, name, **kwargs):
@@ -73,7 +102,8 @@ class p4_action (p4_object):
             self.call_sequence = list(self.call_sequence)
             self.flat_call_sequence = None
 
-        self.signature_widths = [None] * len(self.signature)
+        # just the old alias
+        self.signature_widths = self.data_widths
 
         hlir.p4_actions[self.name] = self
 
@@ -113,7 +143,7 @@ class p4_action (p4_object):
                     )
 
             def resolve_expression(arg):
-                if isinstance(arg, p4_expression):
+                if isinstance(arg, p4_expressions.p4_expression):
                     arg.left = resolve_expression(arg.left)
                     arg.right = resolve_expression(arg.right)
                     return arg
@@ -144,8 +174,8 @@ class p4_action (p4_object):
                         for idx, subcall_arg in enumerate(new_call[1]):
 
                             def resolve_expression(arg):
-                                if isinstance(arg, p4_expression):
-                                    expr = p4_expression(op=arg.op)
+                                if isinstance(arg, p4_expressions.p4_expression):
+                                    expr = p4_expressions.p4_expression(op=arg.op)
                                     expr.left = resolve_expression(arg.left)
                                     expr.right = resolve_expression(arg.right)
                                     return expr
@@ -155,55 +185,12 @@ class p4_action (p4_object):
                                     return arg
 
                             if isinstance(subcall_arg, p4_signature_ref) or\
-                               isinstance(subcall_arg, p4_expression):
+                               isinstance(subcall_arg, p4_expressions.p4_expression):
                                 new_call[1][idx] = resolve_expression(subcall_arg)
 
                         self.flat_call_sequence.append(new_call)
                 else:
                     self.flat_call_sequence.append((call[0], call[1], [(self,call_idx)]))
-
-            for call in self.flat_call_sequence:
-                def resolve_expression(arg, arg_idx):
-                    allowable_types = call[0].signature_flags[call[0].signature[arg_idx]]["type"]
-                    if isinstance(arg, p4_expression):
-                        resolve_expression(arg.left, arg_idx)
-                        resolve_expression(arg.right, arg_idx)
-                    elif isinstance(arg, p4_signature_ref) and p4_table_entry_data in allowable_types:
-                        data_width = call[0].signature_flags[call[0].signature[arg_idx]]["data_width"]
-                        
-                        if type(data_width) is str:
-                            if "." in data_width:
-                                if data_width in hlir.p4_fields:
-                                    data_width = hlir.p4_fields[data_width].width
-                                else:
-                                    raise p4_compiler_msg("Primitive action '"+call[0].name+"' infers width of argument '"+arg+"' from field '"+data_width+"', but field is not defined in the current P4 program.")
-                            else:
-                                inferring_arg = call[1][call[0].signature.index(data_width)]
-                                if type(inferring_arg) is p4_headers.p4_field:
-                                    data_width = inferring_arg.width
-                                elif type(inferring_arg) is p4_stateful.p4_register:
-                                    data_width = inferring_arg.width
-                                else:
-                                    raise p4_compiler_msg("Could not infer width from primitive action '%s' argument in action '%s'" % (call[0].name, call[2][0][0].name))
-                        
-                        if self.signature_widths[arg.idx] == None:
-                            self.signature_widths[arg.idx] = data_width
-                        elif self.signature_widths[arg.idx] != data_width:
-                            p4_compiler_msg (
-                                "Inferred conflicting widths for argument '"+
-                                self.signature[arg.idx]+"' ("+str(data_width)+
-                                " and "+str(self.signature_widths[arg.idx])+
-                                "), using larger width",
-                                self.filename, self.lineno,
-                                level=logging.WARNING
-                            )
-                            self.signature_widths[arg.idx] = max(
-                                data_width,
-                                self.signature_widths[arg.idx]
-                            )
-
-                for arg_idx, arg in enumerate(call[1]):
-                    resolve_expression(arg, arg_idx)
 
     def validate_types (self, hlir, calling_table, args, called_actions):
         # TODO: call sequence needs to replace strings with id'fiers
@@ -240,13 +227,13 @@ class p4_action (p4_object):
                         if arg == p4_table_entry_data:
                             populated_arg = arg
                             break
-                    elif type(arg) is p4_expression:
+                    elif type(arg) is p4_expressions.p4_expression:
                         if param_type in {int, long}:
                             populated_arg = arg
                     else:
                         try:
                             populated_arg = param_type.get_from_hlir(hlir, arg)
-                        except Exception:
+                        except:
                             pass
 
                 if populated_arg == None:
@@ -317,7 +304,7 @@ def p4_action_validate_types(hlir):
     for action in hlir.p4_actions.values():
         for call in action.flat_call_sequence:
             for arg_idx, arg in enumerate(call[1]):
-                if isinstance(arg, p4_expression):
+                if isinstance(arg, p4_expressions.p4_expression):
                     arg.resolve_names(hlir)
 
 #############################################################################

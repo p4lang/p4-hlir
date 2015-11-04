@@ -15,6 +15,7 @@
 import operator
 import ast
 import p4_headers
+import p4_imperatives
 from p4_core import p4_compiler_msg
 
 ops = [
@@ -62,6 +63,24 @@ class p4_expression(object):
                 self.op+" "+
                 str(self.right)+")")
 
+    def resolve_one_name(self, hlir, local_vars, name):
+        if name in local_vars:
+            return local_vars[name]
+        try:
+            return p4_headers.p4_header_instance.get_from_hlir(hlir, name)
+        except:
+            pass
+
+        try:
+            return p4_headers.p4_field.get_from_hlir(hlir, name)
+        except:
+            pass
+
+        try:
+            return p4_imperatives.p4_register_ref.get_from_hlir(hlir, name)
+        except:
+            raise p4_compiler_msg ("Undeclared identifier '%s'" % name)
+
     def resolve_names(self, hlir, local_vars=None):
         """
         Change strings in the expression into references to their relevant
@@ -74,44 +93,18 @@ class p4_expression(object):
             local_vars = {}
 
         if self.op=="valid":
-            if self.right in local_vars:
-                self.right = local_vars[self.right]
-            else:
-                try:
-                    self.right = hlir.p4_header_instances[self.right]
-                except KeyError:
-                    raise p4_compiler_msg ("Undeclared identifier '%s'" % self.right)
-
-                # TODO: once types are in the HLIR, modify this function to
-                #       accept HLIR types and use those instead of the above:
-                # self.right = hlir._resolve_object(p4_headers.p4_header_instance, self.right)
+            self.right = self.resolve_one_name(hlir, local_vars, self.right)
+        elif isinstance(self.op, p4_expression):
+            # hack for ternary ? :
+            self.op.resolve_names(hlir, local_vars)
         else:
 
             if type(self.left) is p4_expression:
-                self.left.resolve_names (hlir, local_vars)
+                self.left.resolve_names(hlir, local_vars)
             elif type(self.left) is str:
-                if self.left in local_vars:
-                    self.left = local_vars[self.left]
-                else:
-                    try:
-                        self.left = hlir.p4_fields[self.left]
-                    except KeyError:
-                        raise p4_compiler_msg ("Undeclared identifier '%s'" % self.left)
-                    # TODO: once types are in the HLIR, modify this function to
-                    #       accept HLIR types and use those instead of the above:
-                    # self.left = hlir._resolve_object(p4_headers.p4_field, self.left)
+                self.left = self.resolve_one_name(hlir, local_vars, self.left)
 
             if type(self.right) is p4_expression:
-                self.right.resolve_names (hlir, local_vars)
+                self.right.resolve_names(hlir, local_vars)
             elif type(self.right) is str:
-                if self.right in local_vars:
-                    self.right = local_vars[self.right]
-                else:
-                    try:
-                        self.right = hlir.p4_fields[self.right]
-                    except KeyError:
-                        raise p4_compiler_msg ("Undeclared identifier '%s'" % self.right)
-
-                    # TODO: once types are in the HLIR, modify this function to
-                    #       accept HLIR types and use those instead of the above:
-                    # self.right = hlir._resolve_object(p4_headers.p4_field, self.right)
+                self.right = self.resolve_one_name(hlir, local_vars, self.right)

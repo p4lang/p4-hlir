@@ -51,16 +51,15 @@ class P4Lexer:
         print s, "in file", self.filename, "at line", self.get_lineno()
 
     keywords = (
-        'INT', 'BIT', 'VARBIT', 'VOID',
+        'INT', 'BIT', 'VARBIT', # 'VOID',
         'IF', 'ELSE', 'SELECT',
-        # 'SWITCH',
         'SIGNED', 'SATURATING',
         'FIELDS', 'LENGTH', 'MAX_LENGTH',
         'IN', 'OUT', 'INOUT', 'OPTIONAL',
         'EXTERN_TYPE',
         'EXTERN',
-        'ATTRIBUTE','EXPRESSION_LOCAL_VARIABLES',
-        'STRING', 'EXPRESSION', 'BLOCK',
+        'ATTRIBUTE','LOCAL_VARIABLES',
+        'STRING', 'BLOCK',
         'METHOD',
         'HEADER_TYPE',
         'HEADER',
@@ -78,7 +77,6 @@ class P4Lexer:
         'INSTANCE_COUNT', 'MIN_WIDTH',
         'WIDTH', 'ATTRIBUTES', 'LAYOUT',
         'RESULT',
-        # 'EXACT', 'TERNARY', 'LPM', 'RANGE', 'VALID',
         'BYTES', 'PACKETS', 'PACKETS_AND_BYTES',
         'APPLY',
         'EXTRACT', 'SET_METADATA',
@@ -88,13 +86,10 @@ class P4Lexer:
         'LATEST', 'NEXT',
         'PAYLOAD',
         'MASK',
-        'PARSE_ERROR',
-        'PRIMITIVE_ACTION',
         'VALID',
         'TRUE', 'FALSE',
         'DEFAULT',
         'HIT', 'MISS',
-        'PARSER_DROP',
         # TODO: temporary, the attribute should not be tokens, there will be a
         # big refactoring later
         'SUPPORT_TIMEOUT',
@@ -126,6 +121,7 @@ class P4Lexer:
 
         # constants
         'INT_CONST_DEC', 'INT_CONST_HEX',
+        'INT_CONST_DEC_W', 'INT_CONST_HEX_W',
 
         # operators
         'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'MOD',
@@ -139,7 +135,8 @@ class P4Lexer:
         'LBRACE', 'RBRACE', # { }
         'COMMA', 'PERIOD', # . ,
         'SEMI', 'COLON', # ; :
-        'APOSTROPHE', # '
+        'ASSIGN', # =
+        'QMARK', # ?
 
         # pre-processor
         'PPHASH', # '#'
@@ -178,7 +175,8 @@ class P4Lexer:
     t_PERIOD = r'\.'
     t_SEMI = r';'
     t_COLON = r':'
-    t_APOSTROPHE = r'\''
+    t_ASSIGN = r'='
+    t_QMARK = r'\?'
 
     # valid C identifiers (K&R2: A.2.3), plus '$' (supported by some compilers)
     identifier = r'[a-zA-Z_$][0-9a-zA-Z_$]*'
@@ -187,6 +185,8 @@ class P4Lexer:
     # integer constants (K&R2: A.2.5.1)
     decimal_constant = '[0-9]+'
     hex_constant = hex_prefix + hex_digits
+    decimal_constant_width = decimal_constant + '(w|s)' + decimal_constant
+    hex_constant_width = decimal_constant + '(w|s)' + hex_constant
 
     simple_escape = r"""([a-zA-Z._~!=&\^\-\\?'"])"""
     decimal_escape = r"""(\d+)"""
@@ -209,6 +209,14 @@ class P4Lexer:
     @TOKEN(identifier)
     def t_ID(self, t):
         t.type = self.keywords_map.get(t.value, "ID")
+        return t
+
+    @TOKEN(hex_constant_width)
+    def t_INT_CONST_HEX_W(self, t):
+        return t
+
+    @TOKEN(decimal_constant_width)
+    def t_INT_CONST_DEC_W(self, t):
         return t
 
     @TOKEN(hex_constant)

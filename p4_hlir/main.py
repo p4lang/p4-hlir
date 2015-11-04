@@ -53,6 +53,7 @@ class HLIR():
         self.p4_control_flows = OrderedDict()
         self.p4_headers = OrderedDict()
         self.p4_header_instances = OrderedDict()
+        self.p4_header_stacks = OrderedDict()
         self.p4_fields = OrderedDict()
         self.p4_field_lists = OrderedDict()
         self.p4_field_list_calculations = OrderedDict()
@@ -68,6 +69,8 @@ class HLIR():
         self.p4_action_selectors = OrderedDict()
         self.p4_conditional_nodes = OrderedDict()
         self.p4_action_nodes = OrderedDict()
+
+        self._p4_register_refs = []
 
         self.calculated_fields = []
 
@@ -202,7 +205,7 @@ class HLIR():
     }
 
     def _type_spec_to_hlir(self, type_spec):
-        obj_type = type_spec.name
+        obj_type = type_spec.type_name
 
         try:
             return HLIR._type_map[obj_type]
@@ -213,7 +216,7 @@ class HLIR():
             )
 
     def _resolve_object(self, type_spec, value, filename=None, lineno=None):
-        obj_type = type_spec.name
+        obj_type = type_spec.type_name
         # TODO: improve
         if type(value) is not str:
             return value

@@ -27,13 +27,12 @@ def get_ast_type(type_):
         Types.counter : P4Counter,
         Types.meter : P4Meter,
         Types.register : P4Register,
-        Types.primitive_action : P4PrimitiveAction,
         Types.action_function : P4ActionFunction,
         Types.table : P4Table,
         Types.action_profile : P4ActionProfile,
         Types.action_selector : P4ActionSelector,
         Types.control_function : P4ControlFunction,
-        Types.parser_exception : P4ParserException,
+        # Types.parser_exception : P4ParserException,
         Types.extern_type : P4ExternType,
         Types.extern_instance : P4ExternInstance,
         Types.type_spec : P4TypeSpec,
@@ -50,12 +49,12 @@ def mark_used_P4ExternType(self, objects, types = None):
         member.mark_used(objects)
 
 def mark_used_P4TypeSpec(self, objects, types = None):
-    if self.name == "header" or self.name == "metadata":
+    if self.type_name == "header" or self.type_name == "metadata":
         type_ = P4HeaderType
-        subtype = self.qualifiers["subtype"]
-    elif self.name == "extern":
+        subtype = self.specifiers["subtype"]
+    elif self.type_name == "extern":
         type_ = P4ExternType
-        subtype = self.qualifiers["subtype"]
+        subtype = self.specifiers["subtype"]
     else:
         return
     obj = objects.get_object(subtype, type_)
@@ -106,6 +105,10 @@ def mark_used_P4ExternInstanceAttribute(self, objects, types = None):
         
 def mark_used_P4HeaderType(self, objects, types = None):
     pass
+
+def mark_used_P4HeaderStack(self, objects, types = None):
+    obj = objects.get_object(self.header_type, P4HeaderType)
+    if obj: obj.mark()
 
 def mark_used_P4HeaderInstance(self, objects, types = None):
     obj = objects.get_object(self.header_type, P4HeaderType)
@@ -161,9 +164,6 @@ def mark_used_P4Register(self, objects, types = None):
     if self.layout:
         self.layout.mark_used(objects, {P4HeaderType})
 
-def mark_used_P4PrimitiveAction(self, objects, types = None):
-    pass
-
 def mark_used_P4ActionFunction(self, objects, types = None):
     for call in self.action_body:
         call.mark_used(objects)
@@ -172,7 +172,9 @@ def mark_used_P4ActionCall(self, objects, types = None):
     self.action.mark_used(objects, {P4Action})
 
     action = objects.get_object(self.action.name, P4Action)
-    if not action: return
+    # action primitives are not part of the AST any more
+    # if not action:
+    #     return
 
     for arg in self.arg_list:
         arg.mark_used(
@@ -180,6 +182,10 @@ def mark_used_P4ActionCall(self, objects, types = None):
             {P4HeaderInstance, P4FieldList, P4FieldListCalculation, P4Counter,
              P4Meter, P4Register}
         )
+
+def mark_used_P4Assignment(self, objects, types = None):
+    self.target.mark_used(objects)
+    self.value.mark_used(objects)
 
 def mark_used_P4ExternMethodCall(self, objects, types = None):
     self.extern_instance.mark_used(objects, {P4ExternInstance})
@@ -263,21 +269,11 @@ def mark_used_P4RefExpression(self, objects, types = None):
             obj.mark()
             return
 
-last_extracted = None
+def mark_used_P4StructRefExpression(self, objects, types = None):
+    self.struct.mark_used(objects, {P4HeaderInstance})
 
-def mark_used_P4FieldRefExpression(self, objects, types = None):
-    global last_extracted
-    if type(self.header_ref) is str:
-        assert(self.header_ref == "latest")
-        header = last_extracted
-        header_ref = objects.get_object(last_extracted, P4HeaderInstance)
-        if header_ref: header_ref.mark()
-    else:
-        self.header_ref.mark_used(objects, {P4HeaderInstance})
-
-def mark_used_P4HeaderRefExpression(self, objects, types = None):
-    header_instance = objects.get_object(self.name, P4HeaderInstance)
-    if header_instance: header_instance.mark()
+def mark_used_P4ArrayRefExpression(self, objects, types = None):
+    self.array.mark_used(objects, {P4HeaderStack, P4Register})
 
 def mark_used_P4String(self, objects, types = None):
     pass
@@ -285,20 +281,13 @@ def mark_used_P4String(self, objects, types = None):
 def mark_used_P4Integer(self, objects, types = None):
     pass
 
-def mark_used_P4Bool(self, objects, types = None):
-    pass
-
 def mark_used_P4ParserFunction(self, objects, types = None):
-    global last_extracted
-    last_extracted = None
     for statement in self.extract_and_set_statements:
         statement.mark_used(objects)
     self.return_statement.mark_used(objects)
 
 def mark_used_P4ParserExtract(self, objects, types = None):
-    global last_extracted
     self.header_ref.mark_used(objects, {P4HeaderInstance})
-    last_extracted = self.header_ref.name
 
 def mark_used_P4ParserSetMetadata(self, objects, types = None):
     self.field_ref.mark_used(objects)
@@ -321,18 +310,11 @@ def mark_used_P4ParserSelectCase(self, objects, types = None):
 def mark_used_P4ParserSelectDefaultCase(self, objects, types = None):
     self.return_.mark_used(objects, {P4ParserFunction, P4ControlFunction})
 
-def mark_used_P4ParserParseError(self, objects, types = None):
-    self.parse_error.mark_used(objects, {P4ParserException})
+# def mark_used_P4ParserParseError(self, objects, types = None):
+#     self.parse_error.mark_used(objects, {P4ParserException})
 
 def mark_used_P4CurrentExpression(self, objects, types = None):
     pass
-
-def mark_used_P4BoolBinaryExpression(self, objects, types = None):
-    self.left.mark_used(objects)
-    self.right.mark_used(objects)
-
-def mark_used_P4BoolUnaryExpression(self, objects, types = None):
-    self.right.mark_used(objects)
 
 def mark_used_P4ValidExpression(self, objects, types = None):
     self.header_ref.mark_used(objects, {P4HeaderInstance})
@@ -344,22 +326,31 @@ def mark_used_P4BinaryExpression(self, objects, types = None):
 def mark_used_P4UnaryExpression(self, objects, types = None):
     self.right.mark_used(objects)
 
-def mark_used_P4ParserException(self, objects, types = None):
-    for set_statement in self.set_statements:
-        set_statement.mark_used(objects)
-    self.return_or_drop.mark_used(objects)
-        
-def mark_used_P4ParserExceptionDrop(self, objects, types = None):
-    pass
+def mark_used_P4CastExpression(self, objects, types = None):
+    self.right.mark_used(objects)
 
-def mark_used_P4ParserExceptionReturn(self, objects, types = None):
-    self.control_function.mark_used(objects, {P4ControlFunction})
+def mark_used_P4TernaryExpression(self, objects, types = None):
+    self.cond.mark_used(objects)
+    self.left.mark_used(objects)
+    self.right.mark_used(objects)
+
+# def mark_used_P4ParserException(self, objects, types = None):
+#     for set_statement in self.set_statements:
+#         set_statement.mark_used(objects)
+#     self.return_or_drop.mark_used(objects)
+        
+# def mark_used_P4ParserExceptionDrop(self, objects, types = None):
+#     pass
+
+# def mark_used_P4ParserExceptionReturn(self, objects, types = None):
+#     self.control_function.mark_used(objects, {P4ControlFunction})
 
 
 P4Program.mark_used = mark_used_P4Program
 P4ExternType.mark_used = mark_used_P4ExternType
 P4ExternInstance.mark_used = mark_used_P4ExternInstance
 P4HeaderType.mark_used = mark_used_P4HeaderType
+P4HeaderStack.mark_used = mark_used_P4HeaderStack
 P4HeaderInstance.mark_used = mark_used_P4HeaderInstance
 P4FieldList.mark_used = mark_used_P4FieldList
 P4FieldListCalculation.mark_used = mark_used_P4FieldListCalculation
@@ -369,7 +360,6 @@ P4ParserFunction.mark_used = mark_used_P4ParserFunction
 P4Counter.mark_used = mark_used_P4Counter
 P4Meter.mark_used = mark_used_P4Meter
 P4Register.mark_used = mark_used_P4Register
-P4PrimitiveAction.mark_used = mark_used_P4PrimitiveAction
 P4ActionFunction.mark_used = mark_used_P4ActionFunction
 P4Table.mark_used = mark_used_P4Table
 P4ActionProfile.mark_used = mark_used_P4ActionProfile
@@ -379,22 +369,20 @@ P4ControlFunction.mark_used = mark_used_P4ControlFunction
 P4TypeSpec.mark_used = mark_used_P4TypeSpec
 
 P4RefExpression.mark_used = mark_used_P4RefExpression
-P4FieldRefExpression.mark_used = mark_used_P4FieldRefExpression
-P4HeaderRefExpression.mark_used = mark_used_P4HeaderRefExpression
-P4RefExpression.mark_used = mark_used_P4RefExpression
+P4StructRefExpression.mark_used = mark_used_P4StructRefExpression
+P4ArrayRefExpression.mark_used = mark_used_P4ArrayRefExpression
 P4String.mark_used = mark_used_P4String
 P4Integer.mark_used = mark_used_P4Integer
-P4Bool.mark_used = mark_used_P4Bool
 P4TypedRefExpression.mark_used = mark_used_P4TypedRefExpression
 P4UserHeaderRefExpression.mark_used = mark_used_P4UserHeaderRefExpression
 P4UserMetadataRefExpression.mark_used = mark_used_P4UserMetadataRefExpression
 P4UserExternRefExpression.mark_used = mark_used_P4UserExternRefExpression
 
-P4BoolBinaryExpression.mark_used = mark_used_P4BoolBinaryExpression
-P4BoolUnaryExpression.mark_used = mark_used_P4BoolUnaryExpression
 P4BinaryExpression.mark_used = mark_used_P4BinaryExpression
 P4UnaryExpression.mark_used = mark_used_P4UnaryExpression
+P4CastExpression.mark_used = mark_used_P4CastExpression
 P4ValidExpression.mark_used = mark_used_P4ValidExpression
+P4TernaryExpression.mark_used = mark_used_P4TernaryExpression
 
 P4ParserExtract.mark_used = mark_used_P4ParserExtract
 P4ParserSetMetadata.mark_used = mark_used_P4ParserSetMetadata
@@ -402,7 +390,7 @@ P4ParserImmediateReturn.mark_used = mark_used_P4ParserImmediateReturn
 P4ParserSelectReturn.mark_used = mark_used_P4ParserSelectReturn
 P4ParserSelectCase.mark_used = mark_used_P4ParserSelectCase
 P4ParserSelectDefaultCase.mark_used = mark_used_P4ParserSelectDefaultCase
-P4ParserParseError.mark_used = mark_used_P4ParserParseError
+# P4ParserParseError.mark_used = mark_used_P4ParserParseError
 
 P4CurrentExpression.mark_used = mark_used_P4CurrentExpression
 
@@ -430,9 +418,11 @@ P4ControlFunctionApplyHitMissCase.mark_used = mark_used_P4ControlFunctionApplyHi
 
 P4UpdateVerify.mark_used = mark_used_P4UpdateVerify
 
-P4ParserException.mark_used = mark_used_P4ParserException
-P4ParserExceptionDrop.mark_used = mark_used_P4ParserExceptionDrop
-P4ParserExceptionReturn.mark_used = mark_used_P4ParserExceptionReturn
+# P4ParserException.mark_used = mark_used_P4ParserException
+# P4ParserExceptionDrop.mark_used = mark_used_P4ParserExceptionDrop
+# P4ParserExceptionReturn.mark_used = mark_used_P4ParserExceptionReturn
+
+P4Assignment.mark_used = mark_used_P4Assignment
 
 def remove_unused_P4Program(self, objects):
     removed = True

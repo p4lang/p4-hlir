@@ -68,7 +68,7 @@ class p4_extern_method (p4_action):
         self.required_params = len(self.params)
 
         for param in self.params:
-            if "optional" in param[2]:
+            if "optional" in param[1].qualifiers:
                 self.required_params -= 1
 
         for param in self.params:
@@ -91,14 +91,15 @@ class p4_extern_method (p4_action):
                 # TODO: refine this, depends on type!
                 flags["data_width"] = 32
 
-            if "in" in param[2]:
+            type_qualifiers = param[1].qualifiers
+            if "in" in type_qualifiers:
                 flags["direction"] = P4_READ
-            elif "out" in param[2]:
+            elif "out" in type_qualifiers:
                 flags["direction"] = P4_WRITE
             else:
                 flags["direction"] = P4_READ_WRITE
 
-            if "optional" in param[2]:
+            if "optional" in type_qualifiers:
                 flags["optional"] = True
 
             self.signature_flags[param[0]] = flags
