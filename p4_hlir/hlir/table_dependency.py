@@ -78,6 +78,9 @@ class rmt_table(object):
         # it is tuple (ancestor table, True | False)
         self.conditional_barrier = conditional_barrier
 
+    def get_special_fields(self):
+        return set(), set(), set()
+
 # places all fields of a header instance in field_set
 def get_all_subfields(field, field_set):
     if isinstance(field, p4.p4_field):
@@ -114,6 +117,11 @@ class rmt_p4_table(rmt_table):
 
         self._retrieve_action_fields()
 
+        r, w, a = self.get_special_fields()
+        self.action_fields_read.update(r)
+        self.action_fields_write.update(w)
+        self.action_fields.update(a)
+
     # not really needed any more
     def _retrieve_action_fields(self):
         for action in self.p4_table.actions:
@@ -124,6 +132,14 @@ class rmt_p4_table(rmt_table):
 
     def get_action_fields(self):
         return self.action_fields_read, self.action_fields_write, self.action_fields
+
+    def get_special_fields(self):
+        r, w, a = set(), set(), set()
+        for p4_meter in self.p4_table.attached_meters:
+            if p4_meter.binding and (p4_meter.binding[0] == p4.P4_DIRECT):
+                w.add(p4_meter.result)
+                a.add(p4_meter.result)
+        return r, w, a
 
 
 class rmt_table_dependency():
@@ -153,6 +169,11 @@ class rmt_table_dependency():
                 self.action_fields_read.update(r)
                 self.action_fields_write.update(w)
                 self.action_fields.update(a)
+
+        r, w, a = self.from_.get_special_fields()
+        self.action_fields_read.update(r)
+        self.action_fields_write.update(w)
+        self.action_fields.update(a)
 
         # fields that induce the dependency
         self.fields = {}
