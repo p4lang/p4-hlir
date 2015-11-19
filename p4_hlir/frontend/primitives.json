@@ -58,6 +58,27 @@
 	    }
 	}
     },
+    "modify_field_rng_uniform" :
+    {
+	"num_args" : 3,
+	"args" : ["dst", "begin", "end"],
+	"properties" : {
+	    "dst" : {
+		"type" : ["field"],
+		"access" : "write"
+	    },
+	    "begin" : {
+		"type" : ["field", "int", "table_entry_data"],
+		"access" : "read",
+		"data_width" : "dst"
+	    },
+	    "end" : {
+		"type" : ["field", "int", "table_entry_data"],
+		"access" : "read",
+		"data_width" : "dst"
+	    }
+	}
+    },
     "register_read" :
     {
 	"num_args" : 3,
