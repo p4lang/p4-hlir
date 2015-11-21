@@ -1958,45 +1958,15 @@ class P4Parser:
         p[0] = p[1]
 
     def p_bool_exp_6(self, p):
-        """ bool_exp : exp LT exp
-                     | exp GT exp
-                     | exp LE exp
-                     | exp GE exp
-                     | exp EQ exp
-                     | exp NE exp
+        """ bool_exp : arith_exp LT arith_exp
+                     | arith_exp GT arith_exp
+                     | arith_exp LE arith_exp
+                     | arith_exp GE arith_exp
+                     | arith_exp EQ arith_exp
+                     | arith_exp NE arith_exp
         """
         p[0] = P4BinaryExpression(self.get_filename(), p.lineno(1),
                                   p[2], p[1], p[3])
-
-    def p_exp_1(self, p):
-        """ exp : field_ref
-        """
-        p[0] = p[1]
-
-    def p_exp_2(self, p):
-        """ exp : NOT exp
-                | MINUS exp %prec UMINUS
-                | PLUS exp %prec UMINUS
-        """
-        p[0] = P4UnaryExpression(self.get_filename(), p.lineno(1), p[1], p[2])
-
-    def p_exp_3(self, p):
-        """ exp : exp AND exp
-                | exp OR exp
-                | exp XOR exp
-        """
-        p[0] = P4BinaryExpression(self.get_filename(), p.lineno(1),
-                                  p[2], p[1], p[3])
-
-    def p_exp_4(self, p):
-        """ exp : const_value
-        """
-        p[0] = p[1]
-
-    def p_exp_5(self, p):
-        """ exp : LPAREN exp RPAREN
-        """
-        p[0] = p[2]
 
     def p_general_exp(self, p):
         """ general_exp : expression
