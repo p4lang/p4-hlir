@@ -2038,10 +2038,12 @@ class P4Parser:
         """
         p[0] = p[1]
 
-    def p_expression_10(self, p):
-        """ expression : ID
-        """
-        p[0] = P4RefExpression(self.get_filename(), p.lineno(1), p[1])
+    # included in 'header_ref' rule
+
+    # def p_expression_10(self, p):
+    #     """ expression : ID
+    #     """
+    #     p[0] = P4RefExpression(self.get_filename(), p.lineno(1), p[1])
 
     def p_expression_11(self, p):
         """ expression : header_ref
