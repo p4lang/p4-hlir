@@ -257,6 +257,18 @@
 	    }
 	}
     },
+    "recirculate" :
+    {
+	"num_args" : 1,
+	"args" : ["field_list"],
+	"properties" : {
+	    "field_list" : {
+		"type" : ["field_list"],
+		"access" : "read",
+		"optional" : true
+	    }
+	}
+    },
     "modify_field_with_hash_based_offset":
     {
 	"num_args" : 4,
