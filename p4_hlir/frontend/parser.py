@@ -924,7 +924,7 @@ class P4Parser:
                                     p[1], p[3])   # "latest" is header ref
 
     def p_metadata_expr_3(self, p):
-        """ metadata_expr : CURRENT LPAREN const_value COMMA const_value
+        """ metadata_expr : CURRENT LPAREN const_value COMMA const_value RPAREN
         """
         p[0] = P4CurrentExpression(self.get_filename(), p.lineno(1), p[3], p[5])
 

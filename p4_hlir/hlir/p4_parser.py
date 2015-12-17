@@ -156,7 +156,7 @@ class p4_parse_state (p4_object):
                 if type(metadata_value) is int:
                     metadata_value = metadata_value
                 elif type(metadata_value) is tuple:
-                    metadata_value = (metadata_value[1], metadata_value[2])
+                    metadata_value = (metadata_value[0], metadata_value[1])
                 elif type(metadata_value) is str:
                     hdr, field = metadata_value.split(".")
                     if hdr == "latest":
