@@ -281,7 +281,8 @@ class rmt_table_graph():
 
     def __contains__(self, table):
         if type(table) is p4.p4_table or\
-           type(table) is p4.p4_conditional_node:
+           type(table) is p4.p4_conditional_node or\
+           type(table) is p4.p4_action_node:
             return table in self._p4_visited
         print type(table)
         assert(False)
@@ -309,7 +310,7 @@ class rmt_table_graph():
             cb = self._p4_visited[cb_p4[0]], cb_p4[1]
         else:
             cb = None
-        if type(p4_node) is p4.p4_table:
+        if isinstance(p4_node, p4.p4_table):
             table = rmt_p4_table(p4_node, cb)
         else:
             table = rmt_conditional_table(p4_node, cb)
@@ -327,10 +328,12 @@ class rmt_table_graph():
         assert(p4_node in self)
         return self._p4_visited[p4_node]
 
-    def add_dependency(self, child, parent, action_set = None):
+    def add_dependency(self, child, parent,
+                       action_set = None, type_ = Dependency.CONTROL_FLOW):
         assert(child.name in self._nodes and parent.name in self._nodes)
         dependency = rmt_table_dependency(parent, child,
-                                          action_set = action_set)
+                                          action_set = action_set,
+                                          type_ = type_)
         parent.next_tables[child] = dependency
         child.incoming[parent] = dependency
         self._validated = False
@@ -454,54 +457,6 @@ class rmt_table_graph():
 
         assert( self.validate() )
                 
-
-    def generate_dot(self, name = "ingress", out = sys.stdout,
-                     min_dep = Dependency.CONTROL_FLOW,
-                     with_condition_str = True,
-                     debug = False):
-        styles = {Dependency.CONTROL_FLOW: "style=dotted",
-                  Dependency.REVERSE_READ: "color=yellow",
-                  Dependency.PREDICATION: "color=green",
-                  Dependency.SUCCESSOR: "color=green",
-                  Dependency.ACTION: "color=blue",
-                  Dependency.MATCH: "color=red"}
-        out.write("digraph " + name + " {\n")
-
-        # set conditional tables to be represented as boxes
-        for table in self._nodes.values():
-            if isinstance(table, rmt_conditional_table):
-                if with_condition_str:
-                    label = "\"" + table.name + "\\n" +\
-                            str(table.condition) + "\""
-                    label = "label=" + label
-                else:
-                    label = table.name
-                out.write(table.name + " [shape=box " + label + "];\n")
-
-        for table in self._nodes.values():
-            for dependency in table.next_tables.values():
-                if dependency.type_ < min_dep:
-                    continue
-                if dependency.type_ == Dependency.REDUNDANT:
-                    continue
-                if debug:
-                    dep_fields = []
-                    for field in dependency.fields:
-                        dep_fields.append(str(field))
-                    edge_label = "label=\"" + ",\n".join(dep_fields) + "\""
-                    edge_label += " decorate=true"
-                else:
-                    edge_label = ""
-                if dependency.type_ == Dependency.SUCCESSOR:
-                    if dependency.to.conditional_barrier[1] == False:
-                        edge_label += " arrowhead = diamond"
-                    else:
-                        edge_label += " arrowhead = dot"
-                out.write(table.name + " -> " + dependency.to.name +\
-                          " [" + styles[dependency.type_] +\
-                          " " + edge_label + "]" + ";\n")
-        out.write("}\n")
-
     def annotate_hlir(self):
         for table in self._nodes.values():
             for dependency in table.next_tables.values():
@@ -530,7 +485,7 @@ def parse_p4_table_graph(table_graph, p4_node,
             if nt: parse_p4_table_graph(table_graph, nt, table,
                                            action_set = None)
 
-    elif(type(p4_node) is p4.p4_table):
+    elif(isinstance(p4_node, p4.p4_table)):
         table_actions = defaultdict(set)
         hit_miss = False
         for a in next_tables.keys():
@@ -552,47 +507,31 @@ def parse_p4_table_graph(table_graph, p4_node,
         print type(p4_node)
         assert(False)
 
-def rmt_build_table_graph(name, entry):
+def rmt_build_table_graph(name, entry, forced_dependencies = []):
     table_graph = rmt_table_graph()
     dummy_table = table_graph.add_dummy_table(name)
     parse_p4_table_graph(table_graph, entry,
-                            parent = dummy_table)
+                         parent = dummy_table)
     assert( table_graph.validate() )
     table_graph.resolve_dependencies()
+    for parent, child, type_ in forced_dependencies:
+        parent = table_graph.get_table(parent)
+        child = table_graph.get_table(child)
+        table_graph.add_dependency(child, parent, type_ = type_)
     return table_graph
 
-# returns a rmt_table_graph object for ingress
-def rmt_build_table_graph_ingress(hlir):
-    return rmt_build_table_graph("ingress", hlir.p4_ingress_ptr.keys()[0])
-
-# returns a rmt_table_graph object for egress
-def rmt_build_table_graph_egress(hlir):
-    return rmt_build_table_graph("egress", hlir.p4_egress_ptr)
-
-def rmt_gen_dot_table_graph_ingress(out):
-    table_graph = rmt_build_table_graph_ingress()
-    with open(out, 'w') as dotf:
-        table_graph.generate_dot(out = dotf,
-                                 with_condition_str = True,
-                                 debug = True)
-
-def rmt_gen_dot_table_graph_egress(out):
-    table_graph = rmt_build_table_graph_egress()
-    with open(out, 'w') as dotf:
-        table_graph.generate_dot(out = dotf,
-                                 with_condition_str = True,
-                                 debug = True)
-
-def annotate_hlir(hlir):
+def annotate_hlir(hlir, ingress_forced_deps = [], egress_forced_deps = []):
     reset_state(include_valid = True)
 
     for ingress_ptr in hlir.p4_ingress_ptr:
-        ingress_graph = rmt_build_table_graph_ingress(hlir)
+        ingress_graph = rmt_build_table_graph("ingress", ingress_ptr,
+                                              ingress_forced_deps)
         ingress_graph.transitive_reduction()
         ingress_graph.annotate_hlir()
 
     if hlir.p4_egress_ptr is not None:
-        egress_graph = rmt_build_table_graph_egress(hlir)
+        egress_graph = rmt_build_table_graph("egress", hlir.p4_egress_ptr,
+                                             egress_forced_deps)
         egress_graph.transitive_reduction()
         egress_graph.annotate_hlir()
 

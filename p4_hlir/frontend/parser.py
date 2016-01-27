@@ -17,24 +17,32 @@ from tokenizer import P4Lexer
 from ast import *
 
 class P4Parser:
-    def __init__(self):
+    def __init__(self, start='p4_objects', silent=False):
         self.lexer = P4Lexer()
         self.lexer.build()
 
         self.tokens = self.lexer.tokens
 
-        self.parser = yacc.yacc(module = self,
-                                write_tables=0,
-                                debug=False,
-                                start = 'p4_objects')
+        if silent:
+            silent = {"errorlog":yacc.NullLogger()}
+        else:
+            silent = {}
+
+        self.parser = yacc.yacc(
+            module = self,
+            write_tables=0,
+            debug=False,
+            start = start,
+            **silent
+        )
 
         self.errors_cnt = 0
         self.current_pragmas = set()
         
         
-    def parse(self, data, filename = ''):
-        # self.lexer.filename = filename
-        self.lexer.reset_lineno()
+    def parse(self, data, filename = None):
+        if filename != None:
+            self.lexer.filename = filename
         p4_objects = self.parser.parse(input = data,
                                        lexer = self.lexer)
         return p4_objects, self.errors_cnt
@@ -123,6 +131,95 @@ class P4Parser:
         """
         self.current_pragmas.add(p[2])
 
+    # TYPE SPECIFICATION
+    def p_type_spec(self, p):
+        """ type_spec : HEADER ID
+                      | METADATA ID
+                      | EXTERN ID
+                      | FIELD_LIST
+                      | PARSER
+                      | PARSER_EXCEPTION
+                      | ACTION
+                      | TABLE
+                      | CONTROL
+                      | deprecated_types
+                      | data_type_spec
+        """
+        if isinstance(p[1], P4TypeSpec):
+            p[0] = p[1]
+        else:
+            type_name = p[1]
+            qualifiers = {}
+            if type_name == "header":
+                qualifiers["subtype"] = p[2]
+            elif type_name == "metadata":
+                qualifiers["subtype"] = p[2]
+            elif type_name == "extern":
+                qualifiers["subtype"] = p[2]
+            p[0] = P4TypeSpec(self.get_filename(), p.lineno(1), type_name, qualifiers)
+
+    def p_data_type_spec(self, p):
+        """ data_type_spec : INT
+                           | VOID
+                           | BIT
+                           | BIT LT const_value GT
+                           | BIT LT const_value COMMA field_mod_list GT
+                           | VARBIT LT const_value GT
+        """
+        type_name = p[1]
+        qualifiers = {}
+        if type_name == "bit":
+            if len(p) > 2:
+                qualifiers["width"] = p[3].i
+                if len(p) > 5:
+                    for elem in p[5]:
+                        qualifiers[elem] = True
+            else:
+                qualifiers["width"] = 1
+        elif type_name == "varbit":
+            qualifiers["width"] = p[3].i
+        p[0] = P4TypeSpec(self.get_filename(), p.lineno(1), type_name, qualifiers)
+
+    def p_deprecated_types(self, p):
+        """ deprecated_types : COUNTER
+                             | METER
+                             | REGISTER
+                             | FIELD_LIST_CALCULATION
+                             | CALCULATED_FIELD
+                             | PARSER_VALUE_SET
+        """
+        # TODO: this production is here to allow references to currently
+        #       first-class P4 objects. once these first-class versions of 
+        #       counter/meter/etc. are removed from the grammar, this production
+        #       should be removed
+        p[0] = p[1]
+
+
+    # PARAMETER LISTS
+    def p_parameter_list_1(self, p):
+        """ parameter_list : parameter_list COMMA parameter
+        """
+        p[0] = p[1] + [p[3]]
+
+    def p_parameter_list_2(self, p):
+        """ parameter_list : parameter
+        """
+        p[0] = [p[1]]
+
+    def p_parameter(self, p):
+        """ parameter : parameter_qualifier type_spec ID 
+        """
+        p[0] = (p[3],p[2],p[1])
+
+    def p_parameter_qualifier(self, p):
+        """ parameter_qualifier : IN
+                                | OUT
+                                | INOUT
+                                | OPTIONAL IN
+                                | OPTIONAL OUT
+                                | OPTIONAL INOUT
+        """
+        p[0] = set(p[1:])
 
     # HEADER TYPE
 
@@ -362,7 +459,6 @@ class P4Parser:
         """ arith_exp : field_ref
         """
         p[0] = p[1]
-
 
     # INSTANCE DECLARATION
 
@@ -854,6 +950,7 @@ class P4Parser:
     def p_extract_or_set_statement(self, p):
         """ extract_or_set_statement : extract_statement
                                      | set_statement
+                                     | extern_method_call
         """
         p[0] = p[1]
 
@@ -1131,7 +1228,7 @@ class P4Parser:
         """ direct_or_static : DIRECT error SEMI
         """
         self.print_error(p.lineno(1),
-                         "Invalid direct attribute for counter")
+                         "Invalid direct attribute")
 
     def p_direct_or_static_opt_3(self, p):
         """ direct_or_static : STATIC COLON ID SEMI
@@ -1143,7 +1240,7 @@ class P4Parser:
         """ direct_or_static : STATIC error SEMI
         """
         self.print_error(p.lineno(1),
-                         "Invalid static attribute for counter")
+                         "Invalid static attribute")
         
     def p_instance_count_1(self, p):
         """ instance_count : empty
@@ -1159,7 +1256,7 @@ class P4Parser:
         """ instance_count : INSTANCE_COUNT error SEMI
         """
         self.print_error(p.lineno(1),
-                         "Invalid instance_count attribute for counter")
+                         "Invalid instance_count attribute")
 
     def p_counter_min_width_1(self, p):
         """ counter_min_width : empty
@@ -1245,7 +1342,8 @@ class P4Parser:
         """ direct_result : RESULT error SEMI
         """
         self.print_error(p.lineno(1),
-                         "Invalid result attribute for counter")
+                         "Invalid result attribute for meter")
+
 
     # REGISTER
 
@@ -1472,6 +1570,11 @@ class P4Parser:
             p[3]
         )
 
+    def p_action_satement_3(self, p):
+        """ action_statement : extern_method_call SEMI
+        """
+        p[0] = p[1]
+
     def p_action_satement_error_1(self, p):
         """ action_statement : ID error SEMI
         """
@@ -1479,19 +1582,14 @@ class P4Parser:
                          "Invalid action statement in action body")
 
     def p_arg_list_1(self, p):
-        """ arg_list : arg
+        """ arg_list : general_exp
         """
         p[0] = [p[1]]
 
     def p_arg_list_2(self, p):
-        """ arg_list : arg_list COMMA arg
+        """ arg_list : arg_list COMMA general_exp
         """
         p[0] = p[1] + [p[3]]
-
-    def p_arg(self, p):
-        """ arg : general_exp
-        """
-        p[0] = p[1]
 
     
     # TABLE DECLARATION
@@ -1862,6 +1960,11 @@ class P4Parser:
         self.print_error(p.lineno(1),
                          "Invalid apply_table statement")
 
+    def p_control_statement_6(self, p):
+        """ expression_statement : extern_method_call SEMI
+        """
+        p[0] = p[1]
+
     def p_apply_case_list_1(self, p):
         """ apply_case_list : apply_case
         """
@@ -1967,6 +2070,7 @@ class P4Parser:
         """
         p[0] = P4BinaryExpression(self.get_filename(), p.lineno(1),
                                   p[2], p[1], p[3])
+
 
     def p_general_exp(self, p):
         """ general_exp : expression
@@ -2172,3 +2276,235 @@ class P4Parser:
                 p.lineno,
                 "Syntax error while parsing at token %s (%s)" % (p.value, p.type)
             )
+
+    # EXTERN TYPE DECLARATION
+
+    def p_p4_declaration_18(self, p):
+        """ p4_declaration : extern_type_declaration
+        """
+        p[0] = p[1]
+
+    def p_extern_type_declaration_1(self, p):
+        """ extern_type_declaration : EXTERN_TYPE extern_type_name SEMI
+                                      | EXTERN_TYPE extern_type_name LBRACE RBRACE
+        """
+        p[0] = P4ExternType(self.get_filename(), p.lineno(1), p[2])
+
+    def p_extern_type_declaration_2(self, p):
+        """ extern_type_declaration : EXTERN_TYPE extern_type_name LBRACE \
+                                            extern_member_list \
+                                        RBRACE
+        """
+        p[0] = P4ExternType(self.get_filename(), p.lineno(1), p[2], p[4])
+
+    def p_extern_type_name(self, p):
+        """ extern_type_name : ID
+                               | COUNTER
+                               | METER
+                               | REGISTER
+                               | ACTION_PROFILE
+        """
+        # TODO: this production is here to allow extern definitions of
+        #       currently first-class P4 objects. once these first-class
+        #       versions of counter/meter/etc. are removed from the grammar,
+        #       all occurences of this production can just be replaced with
+        #       ID
+        p[0] = p[1]
+
+    def p_extern_attribute_name(self, p):
+        """ extern_attribute_name : ID
+                                    | DIRECT
+                                    | STATIC
+                                    | INSTANCE_COUNT
+                                    | MIN_WIDTH
+                                    | SATURATING
+                                    | WIDTH
+                                    | TYPE
+
+                                    | INPUT
+                                    | ALGORITHM
+                                    | OUTPUT_WIDTH
+
+                                    | SIZE
+                                    | DYNAMIC_ACTION_SELECTION
+        """
+        # TODO: this production is here to allow extern definitions of
+        #       currently first-class P4 objects. once these first-class
+        #       versions of counter/meter/etc. are removed from the grammar,
+        #       all occurences of this production can just be replaced with
+        #       ID
+        p[0] = p[1]
+
+    def p_extern_member_list(self, p):
+        """ extern_member_list : extern_member_list extern_member
+                                 | extern_member
+        """
+        if len(p) > 2:
+            p[0] = p[1] + [p[2]]
+        else:
+            p[0] = [p[1]]
+
+    def p_extern_member_1(self, p):
+        """ extern_member : ATTRIBUTE extern_attribute_name LBRACE \
+                                extern_attribute_property_list \
+                              RBRACE
+
+        """
+        p[0] = P4ExternTypeAttribute(self.get_filename(), p.lineno(1),
+                                       p[2], p[4])
+
+    def p_extern_member_2(self, p):
+        """ extern_member : METHOD ID LPAREN parameter_list RPAREN SEMI
+                            | METHOD ID LPAREN RPAREN SEMI
+        """
+        if len(p) <= 6 :
+            p[0] = P4ExternTypeMethod(self.get_filename(), p.lineno(1),
+                                        p[2], [], [])
+        else:
+            p[0] = P4ExternTypeMethod(self.get_filename(), p.lineno(1),
+                                        p[2], p[4], [])
+
+    def p_extern_member_3(self, p):
+        """ extern_member : METHOD ID LPAREN parameter_list RPAREN LBRACE method_body RBRACE
+                            | METHOD ID LPAREN RPAREN LBRACE method_body RBRACE
+        """
+        if len(p) <= 8 :
+            p[0] = P4ExternTypeMethod(self.get_filename(), p.lineno(1),
+                                        p[2], [], p[6])
+        else:
+            p[0] = P4ExternTypeMethod(self.get_filename(), p.lineno(1),
+                                        p[2], p[4], p[7])
+
+    def p_extern_method_body(self, p):
+        """ method_body : method_access_list
+        """
+        p[0] = p[1]
+
+    def p_method_access_list_1(self, p):
+        """ method_access_list : empty
+        """
+        p[0] = []
+
+    def p_method_access_list_2(self, p):
+        """ method_access_list : method_access method_access_list
+        """
+        p[0] = [p[1]] + p[2]
+
+    def p_method_access_1(self, p):
+        """ method_access : method_access_type LBRACE identifier_list RBRACE
+        """
+        p[0] = P4ExternTypeMethodAccess(self.get_filename(), p.lineno(1),
+                                          p[1], p[3])
+
+    def p_method_access_2(self, p):
+        """ method_access : method_access_type LBRACE RBRACE
+        """
+        p[0] = P4ExternTypeMethodAccess(self.get_filename(), p.lineno(1),
+                                          p[1], [])
+
+    def p_method_access_type(self, p):
+        """ method_access_type : READS
+                               | ID
+        """
+        p[0] = p[1]
+
+    def p_extern_attribute_property_list(self, p):
+        """ extern_attribute_property_list : extern_attribute_property_list extern_attribute_property
+                                             | extern_attribute_property
+        """
+        if len(p) > 2:
+            p[0] = p[1] + [p[2]]
+        else:
+            p[0] = [p[1]]
+
+    def p_extern_attribute_property_1(self, p):
+        """ extern_attribute_property : OPTIONAL SEMI
+        """
+        p[0] = P4ExternTypeAttributeProp(self.get_filename(), p.lineno(1),
+                                           "optional", True)
+
+    def p_extern_attribute_property_2(self, p):
+        """ extern_attribute_property : TYPE COLON type_spec SEMI
+                                        | TYPE COLON STRING SEMI
+                                        | TYPE COLON EXPRESSION SEMI
+                                        | TYPE COLON BLOCK SEMI
+        """
+        if isinstance(p[3], P4TypeSpec):
+            tspec = p[3]
+        else:
+            tspec = P4TypeSpec(self.get_filename(), p.lineno(1), p[3], {})
+        p[0] = P4ExternTypeAttributeProp(self.get_filename(), p.lineno(1),
+                                           "type", tspec)
+
+    def p_extern_attribute_property_3(self, p):
+        """ extern_attribute_property : EXPRESSION_LOCAL_VARIABLES \
+                                          LBRACE identifier_list RBRACE
+        """
+        p[0] = P4ExternTypeAttributeProp(self.get_filename(), p.lineno(1),
+                                           "locals", p[3])
+
+    def p_identifier_list(self, p):
+        """ identifier_list : identifier_list COMMA ID
+                            | ID
+        """
+        if len(p) > 2:
+            p[0] = p[1] + [P4RefExpression(self.get_filename(), p.lineno(1), p[3])]
+        else:
+            p[0] = [P4RefExpression(self.get_filename(), p.lineno(1), p[1])]
+
+    # EXTERN INSTANCE DECLARATION
+
+    def p_p4_declaration_19(self, p):
+        """ p4_declaration : extern_instance_declaration
+        """
+        p[0] = p[1]
+
+    def p_extern_instance_declaration_1(self, p):
+        """ extern_instance_declaration : EXTERN extern_type_name ID SEMI
+        """
+        p[0] = P4ExternInstance(self.get_filename(), p.lineno(1), p[3], p[2])
+
+    def p_extern_instance_declaration_2(self, p):
+        """ extern_instance_declaration : EXTERN extern_type_name ID LBRACE \
+                                                extern_instance_attribute_list \
+                                            RBRACE
+        """
+        p[0] = P4ExternInstance(self.get_filename(), p.lineno(1), p[3], p[2], p[5])
+
+    def p_extern_instance_attribute_list (self, p):
+        """ extern_instance_attribute_list : extern_instance_attribute_list extern_instance_attribute
+                                             | extern_instance_attribute
+        """
+        if len(p) > 2:
+            p[0] = p[1] + [p[2]]
+        else:
+            p[0] = [p[1]]
+
+    def p_extern_instance_attribute_2 (self, p):
+        """ extern_instance_attribute : SINGLE_LINE_ATTR
+        """
+        p[0] = P4ExternInstanceAttribute(self.get_filename(), p.lineno(1), *p[1])
+
+    def p_extern_instance_attribute_3 (self, p):
+        """ extern_instance_attribute : MULTI_LINE_ATTR
+        """
+        p[0] = P4ExternInstanceAttribute(self.get_filename(), p.lineno(1), *p[1])
+
+    def p_extern_instance_attribute_4 (self, p):
+        """ extern_instance_attribute : ID
+        """
+        p[0] = P4ExternInstanceAttribute(self.get_filename(), p.lineno(1), p[1], None)
+
+    def p_extern_method_call_1(self, p):
+        """ extern_method_call : ID PERIOD ID LPAREN arg_list RPAREN
+        """
+        p[0] = P4ExternMethodCall(self.get_filename(), p.lineno(1),
+                                    P4RefExpression(self.get_filename(), p.lineno(1), p[1]),
+                                    p[3], p[5])
+
+    def p_extern_method_call_2(self, p):
+        """ extern_method_call : ID PERIOD ID LPAREN RPAREN
+        """
+        p[0] = P4ExternMethodCall(self.get_filename(), p.lineno(1),
+                                    P4RefExpression(self.get_filename(), p.lineno(1), p[1]),
+                                    p[3], [])

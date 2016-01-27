@@ -17,6 +17,7 @@ from collections import defaultdict
 import json
 import os
 import unused_removal
+import extern_process
 
 class ObjectTable:
     def __init__(self):
@@ -71,6 +72,8 @@ class P4SemanticChecker:
 
     def _bind(self):
         P4Program.check = check_P4Program
+        P4ExternType.check = check_P4ExternType
+        P4ExternInstance.check = check_P4ExternInstance
         P4HeaderType.check = check_P4HeaderType
         P4HeaderInstance.check = check_P4HeaderInstance
         P4HeaderInstanceRegular.check = check_P4HeaderInstanceRegular
@@ -90,6 +93,8 @@ class P4SemanticChecker:
         P4ActionSelector.check = check_P4ActionSelector
         P4ControlFunction.check = check_P4ControlFunction
 
+        P4TypeSpec.check = check_P4TypeSpec
+
         P4RefExpression.check = check_P4RefExpression
         P4FieldRefExpression.check = check_P4FieldRefExpression
         P4HeaderRefExpression.check = check_P4HeaderRefExpression
@@ -97,6 +102,10 @@ class P4SemanticChecker:
         P4String.check = check_P4String
         P4Integer.check = check_P4Integer
         P4Bool.check = check_P4Bool
+        P4TypedRefExpression.check = check_P4TypedRefExpression
+        P4UserHeaderRefExpression.check = check_P4UserHeaderRefExpression
+        P4UserMetadataRefExpression.check = check_P4UserMetadataRefExpression
+        P4UserExternRefExpression.check = check_P4UserExternRefExpression
 
         P4BoolBinaryExpression.check = check_P4BoolBinaryExpression
         P4BoolUnaryExpression.check = check_P4BoolUnaryExpression
@@ -115,6 +124,15 @@ class P4SemanticChecker:
         P4CurrentExpression.check = check_P4CurrentExpression
 
         P4ActionCall.check = check_P4ActionCall
+
+        P4ExternTypeAttribute.check = check_P4ExternTypeAttribute
+        P4ExternTypeAttributeProp.check = check_P4ExternTypeAttributeProp
+        P4ExternTypeMethod.check = check_P4ExternTypeMethod
+        P4ExternTypeMethodAccess.check = check_P4ExternTypeMethodAccess
+
+        P4ExternInstanceAttribute.check = check_P4ExternInstanceAttribute
+
+        P4ExternMethodCall.check = check_P4ExternMethodCall
 
         P4TableFieldMatch.check = check_P4TableFieldMatch
 
@@ -140,6 +158,8 @@ class P4SemanticChecker:
         P4ActionFunction.detect_recursion = detect_recursion_P4ActionFunction
         P4ActionCall.detect_recursion = detect_recursion_P4ActionCall
 
+        P4ExternMethodCall.detect_recursion = detect_recursion_P4ExternMethodCall
+
         P4FieldList.detect_recursion_field_list = detect_recursion_field_list_P4FieldList
         P4Expression.detect_recursion_field_list = detect_recursion_field_list_P4Expression
         P4RefExpression.detect_recursion_field_list = detect_recursion_field_list_P4RefExpression
@@ -154,9 +174,10 @@ class P4SemanticChecker:
         P4HeaderRefExpression.check_action_typing = check_action_typing_P4HeaderRefExpression
         P4RefExpression.check_action_typing = check_action_typing_P4RefExpression
         P4Integer.check_action_typing = check_action_typing_P4Integer
-        P4UnaryExpression.check_action_typing = check_action_typing_P4UnaryExpression
-        P4BinaryExpression.check_action_typing = check_action_typing_P4BinaryExpression
-
+        P4UnaryExpression.check_action_typing = check_action_typing_P4Integer
+        P4ExternMethodCall.check_action_typing = check_action_typing_P4ExternMethodCall
+        P4ParserFunction.check_action_typing = check_action_typing_P4ParserFunction
+        P4ControlFunction.check_action_typing = check_action_typing_P4ControlFunction
 
         P4TreeNode.find_unused_args = find_unused_args_P4TreeNode
         P4Program.find_unused_args = find_unused_args_P4Program
@@ -165,6 +186,7 @@ class P4SemanticChecker:
         P4RefExpression.find_unused_args = find_unused_args_P4RefExpression
         P4UnaryExpression.find_unused_args = find_unused_args_P4UnaryExpression
         P4BinaryExpression.find_unused_args = find_unused_args_P4BinaryExpression
+        P4ExternMethodCall.find_unused_args = find_unused_args_P4ExternMethodCall
 
         P4TreeNode.remove_unused_args = remove_unused_args_P4TreeNode
         P4Program.remove_unused_args = remove_unused_args_P4Program
@@ -179,6 +201,7 @@ class P4SemanticChecker:
 
         P4Program.check_apply_action_cases = check_apply_action_cases_P4Program
         P4ControlFunction.check_apply_action_cases = check_apply_action_cases_P4ControlFunction
+        P4ExternMethodCall.check_apply_action_cases = check_apply_action_cases_P4ExternMethodCall
         P4ControlFunctionStatement.check_apply_action_cases = check_apply_action_cases_P4ControlFunctionStatement
         P4ControlFunctionIfElse.check_apply_action_cases = check_apply_action_cases_P4ControlFunctionIfElse
         P4ControlFunctionApplyAndSelect.check_apply_action_cases = check_apply_action_cases_P4ControlFunctionApplyAndSelect
@@ -279,7 +302,7 @@ def get_types_set_str(types):
 def error_dup_objects(obj1, obj2):
     type_name = get_type_name(obj1)
     error_msg = "Redefinition of %s %s in file %s at line %d,"\
-                "previous definition was in file %s at line %d"\
+                " previous definition was in file %s at line %d"\
                 % (type_name, obj1.name, obj2.filename, obj2.lineno,
                    obj1.filename, obj1.lineno)
     P4TreeNode.print_error(error_msg)
@@ -294,6 +317,15 @@ def import_objects(p4_objects, symbols, objects):
         else:
             objects.add_object(name, obj)
             symbols.add_type(name, obj.get_type_())
+        if isinstance(obj, P4HeaderInstanceRegular):
+            subtype = (Types.header_instance_regular, obj.header_type)
+            symbols.add_type(name, subtype)
+        elif isinstance(obj, P4HeaderInstanceMetadata):
+            subtype = (Types.header_instance_metadata, obj.header_type)
+            symbols.add_type(name, subtype)
+        elif isinstance(obj, P4ExternInstance):
+            subtype = (Types.extern_instance, obj.extern_type)
+            symbols.add_type(name, subtype)
 
 def import_header_fields(p4_objects, header_fields):
     for obj in p4_objects:
@@ -340,11 +372,25 @@ def detect_recursion_P4ActionCall(self, objects, action):
     if not action_called: return False
     return action_called.detect_recursion(objects, action)
 
+def detect_recursion_P4ExternMethodCall(self, objects, action):
+    return False
+
 def check_action_typing_P4Program(self, symbols, objects,
                                   trace = None):
     for obj in self.objects:
-        if type(obj) is not P4Table: continue
-        obj.check_action_typing(symbols, objects)
+        if isinstance(obj, P4Table) or isinstance(obj, P4ControlFunction) \
+           or isinstance(obj, P4ParserFunction):
+            obj.check_action_typing(symbols, objects)
+
+def check_action_typing_P4ParserFunction(self, symbols, objects, trace = None):
+    for statement in self.extract_and_set_statements:
+        if isinstance(statement, P4ExternMethodCall):
+            statement.check_action_typing(symbols, objects, trace = [self.name])
+
+def check_action_typing_P4ControlFunction(self, symbols, objects, trace = None):
+    for statement in self.statements:
+        if isinstance(statement, P4ExternMethodCall):
+            statement.check_action_typing(symbols, objects, trace = [self.name])
 
 def check_action_typing_P4Table(self, symbols, objects,
                                 trace = None):
@@ -421,6 +467,78 @@ def check_action_typing_P4ActionCall(self, symbols, objects,
         symbols.exitscope()
     symbols.pushscope(parent_scope)
 
+
+def check_action_typing_P4ExternMethodCall(self, symbols, objects,
+                                             trace = None):
+    bbox_instance = objects.get_object(self.extern_instance.name, P4ExternInstance)
+    assert(bbox_instance is not None)
+    bbox_type = objects.get_object(bbox_instance.extern_type, P4ExternType)
+    assert(bbox_type is not None)
+    method = P4TreeNode.bbox_methods[bbox_type.name][self.method]
+    types = []
+    for arg in self.arg_list:
+        types += [arg.check_action_typing(symbols, objects, trace = trace)]
+
+    # funny name
+    def type_spec_to_type_set(type_spec):
+        type_ = type_spec.name
+        if type_ == "header":
+            subtype = attr_type_qualifiers["subtype"]
+            return {(Types.header_instance_regular, subtype)}
+        elif type_ == "metadata":
+            subtype = attr_type_qualifiers["subtype"]
+            return {(Types.header_instance_metadata, subtype)}
+        elif type_ == "extern":
+            subtype = attr_type_qualifiers["subtype"]
+            return {(Types.extern_instance, subtype)}
+        else:
+            type_map = {
+                "int" : {Types.int_},
+                "bit" : {Types.int_, Types.field},
+                "varbit" : {Types.int_, Types.field},
+                "field_list" : {Types.field_list},
+                "parser" : {Types.parser_function},
+                "action" : {Types.action_function, Types.primitive_action},
+                "table" : {Types.table},
+                "control" : {Types.control_function},
+                "counter" : {Types.counter},
+                "meter" : {Types.meter},
+                "register" : {Types.register},
+                "field_list_calculation" : {Types.field_list_calculation},
+                "parser_value_set" : {Types.value_set},
+            }
+            try:
+                return type_map[type_]
+            except:
+                assert(0)
+
+    parent_scope = symbols.popscope()
+    trace = trace + [method.name]
+    for idx, type_set in enumerate(types):
+        expected_type_spec = method.param_list[idx][1]
+        expected_type_set = type_spec_to_type_set(expected_type_spec)
+        if not (type_set & expected_type_set):
+            error_msg = "Error when calling extern method '%s' (%s)"\
+                        " in file %s at line %d:"\
+                        " argument %d has type %s, but formal '%s' has type %s"\
+                        % (method.name, get_trace_str(trace),
+                           self.filename, self.lineno,
+                           idx, get_types_set_str(type_set),
+                           method.param_list[idx][0],
+                           get_types_set_str(expected_type_set))
+            P4TreeNode.print_error(error_msg)
+            continue
+        elif len(type_set & expected_type_set) > 1:
+            error_msg = "Error when calling extern method '%s' (%s)"\
+                        " in file %s at line %d:"\
+                        " several candidates for argument %d, possible types are "\
+                        % (method.name, get_trace_str(trace),
+                           self.filename, self.lineno,
+                           idx, get_types_set_str(type_set))
+            P4TreeNode.print_error(error_msg)
+            continue
+    symbols.pushscope(parent_scope)
+
 def check_action_typing_P4FieldRefExpression(self, symbols, objects,
                                              trace = None):
     return {Types.field}
@@ -488,6 +606,10 @@ def find_unused_args_P4BinaryExpression(self, removed, used_args = None):
     self.left.find_unused_args(removed, used_args)
     self.right.find_unused_args(removed, used_args)
 
+def find_unused_args_P4ExternMethodCall(self, removed, used_args = None):
+    for arg in self.arg_list:
+        arg.find_unused_args(removed, used_args)
+
 def remove_unused_args_P4TreeNode(self, removed):
     pass
 
@@ -539,6 +661,10 @@ def check_apply_action_cases_P4Program(self, table_actions, apply_table = None):
 def check_apply_action_cases_P4ControlFunction(self, table_actions, apply_table = None):
     for statement in self.statements:
         statement.check_apply_action_cases(table_actions)
+
+
+def check_apply_action_cases_P4ExternMethodCall(self, table_actions, apply_table = None):
+    pass
 
 def check_apply_action_cases_P4ControlFunctionStatement(self, table_actions, apply_table = None):
     pass
@@ -645,6 +771,20 @@ def check_P4Program(self, symbols, header_fields, objects, types = None):
     check_header_types(self.objects, header_fields)
     symbols.enterscope()
     import_objects(self.objects, symbols, objects)
+
+    P4TreeNode.bbox_attribute_types = {}
+    P4TreeNode.bbox_attribute_required = {}
+    P4TreeNode.bbox_methods = {}
+    self.find_bbox_attribute_types(P4TreeNode.bbox_attribute_types,
+                                   P4TreeNode.bbox_attribute_required,
+                                   P4TreeNode.bbox_methods)
+    self.resolve_bbox_attributes(P4TreeNode.bbox_attribute_types)
+    if self.get_errors_cnt() != 0:
+        return
+
+    P4TreeNode.bbox_attribute_locals = {}
+    self.find_bbox_attribute_locals(P4TreeNode.bbox_attribute_locals)
+
     for obj in self.objects:
         obj.check(symbols, header_fields, objects)
     if self.get_errors_cnt() == 0:
@@ -666,6 +806,124 @@ def check_P4Program(self, symbols, header_fields, objects, types = None):
 
     if self.get_errors_cnt() == 0:
         self.remove_unused(objects)
+
+def check_P4ExternType(self, symbols, header_fields, objects, types = None):
+    for member in self.members:
+        member.check(symbols, header_fields, objects)
+
+def check_P4TypeSpec(self, symbols, header_fields, objects, types = None):
+    if self.name == "header" or self.name == "metadata":
+        type_ = Types.header_type
+        subtype = self.qualifiers["subtype"]
+    elif self.name == "extern":
+        type_ = Types.extern_type
+        subtype = self.qualifiers["subtype"]
+    else:
+        return
+    has_type = symbols.has_type(subtype, type_)
+    if has_type: return
+    error_msg = "Invalid reference to '%s' in file %s at line %d:"\
+                " no %s with that name'"\
+                % (subtype, self.filename, self.lineno, Types.get_name(type_))
+    P4TreeNode.print_error(error_msg)
+
+def check_P4ExternTypeAttributeProp(self, symbols, header_fields, objects, types = None):
+    if self.name == "type":
+        assert(isinstance(self.value, P4TypeSpec))
+        self.value.check(symbols, header_fields, objects)
+
+def check_P4ExternTypeAttribute(self, symbols, header_fields, objects, types = None):
+    for prop in self.properties:
+        prop.check(symbols, header_fields, objects)
+
+def check_P4ExternTypeMethod(self, symbols, header_fields, objects, types = None):
+    symbols.enterscope()
+    for attr_name in P4TreeNode.bbox_attribute_types[self._bbox_type.name]:
+        symbols.add_type(attr_name, Types.extern_attribute)
+    for attr_access in self.attr_access:
+        attr_access.check(symbols, header_fields, objects)
+    symbols.exitscope()
+    for param in self.param_list:
+        # param is name, type_spec, qualifiers
+        assert(isinstance(param[1], P4TypeSpec))
+        param[1].check(symbols, header_fields, objects)
+
+    has_optional = False
+    for param in self.param_list:
+        if "optional" in param[2]:
+            has_optional = True
+        elif has_optional:
+            error_msg = "Error when declaring method '%s'"\
+                        " for extern type '%s' in file %s at line %d:"\
+                        " all parameters following first optional parameter"\
+                        " must also be optional"\
+                        % (self.name, self._bbox_type.name,
+                           self.filename, self.lineno)
+
+def check_P4ExternTypeMethodAccess(self, symbols, header_fields, objects, types = None):
+    for attr in self.attrs:
+        attr.check(symbols, header_fields, objects,
+                   types = {Types.extern_attribute})
+
+def check_P4ExternInstance(self, symbols, header_fields, objects, types = None):
+    defined_attributes = set()
+    for attr in self.attributes:
+        attr._bbox_instance = self
+        attr.check(symbols, header_fields, objects)
+        defined_attributes.add(attr.name)
+
+    bbox_type_name = self.extern_type
+    missing_attributes = P4TreeNode.bbox_attribute_required[bbox_type_name] -\
+                         defined_attributes
+    for attr in missing_attributes:
+        error_msg = "Error when declaring extern instance '%s'"\
+                    " in file %s at line %d: attribute '%s' is required"\
+                    " for extern instances of type '%s'"\
+                    % (self.name, self.filename, self.lineno,
+                       attr, bbox_type_name)
+        P4TreeNode.print_error(error_msg)
+
+def check_P4ExternInstanceAttribute(self, symbols, header_fields, objects, types = None):
+    bbox_type = objects.get_object(self._bbox_instance.extern_type, P4ExternType)
+    assert(bbox_type is not None)
+    bbox_locals = P4TreeNode.bbox_attribute_locals[bbox_type.name]
+    my_locals = bbox_locals[self.name]
+    symbols.enterscope()
+    for local in my_locals:
+        symbols.add_type(local, Types.local)
+    self.value.check(
+        symbols, header_fields, objects,
+        types={Types.field, Types.int_, Types.string_, Types.local}
+    )
+    symbols.exitscope()
+
+def check_P4TypedRefExpression(self, symbols, header_fields, objects, types = None):
+    type_ = Types.get_type(self.type_)
+    # call P4RefExpression.check
+    return super(P4TypedRefExpression, self).check(symbols, header_fields, objects, {type_})
+
+def check_P4UserHeaderRefExpression(self, symbols, header_fields, objects, types = None):
+    type_ = (Types.header_instance_regular, self.header_type)
+    has_type = symbols.has_type(self.name, type_)
+    if has_type: return
+    error_msg = "Invalid reference to %s in file %s at line %d:"\
+                " expected a reference to a header instance of type %s"\
+                % (self.name, self.filename, self.lineno, self.header_type)
+    P4TreeNode.print_error(error_msg)
+
+def check_P4UserMetadataRefExpression(self, symbols, header_fields, objects, types = None):
+    type_ = (Types.header_instance_metadata, self.header_type)
+    
+    has_type = symbols.has_type(self.name, type_)
+    if has_type: return
+    error_msg = "Invalid reference to %s in file %s at line %d:"\
+                " expected a reference to a metadata instance of type %s"\
+                % (self.name, self.filename, self.lineno, self.header_type)
+    P4TreeNode.print_error(error_msg)
+
+def check_P4UserExternRefExpression(self, symbols, header_fields, objects, types = None):
+    # TODO
+    pass
 
 def check_P4HeaderType(self, symbols, header_fields, objects, types = None):
     visited = set()
@@ -924,6 +1182,51 @@ def check_P4ActionCall(self, symbols, header_fields, objects, types = None):
                 Types.counter, Types.meter, Types.register
             }
         )
+
+def check_P4ExternMethodCall(self, symbols, header_fields, objects, types = None):
+    if not self.extern_instance.check(symbols, header_fields, objects,
+                                        {Types.extern_instance}):
+        return
+    bbox_instance = objects.get_object(self.extern_instance.name, P4ExternInstance)
+    assert(bbox_instance is not None)
+    bbox_type = objects.get_object(bbox_instance.extern_type, P4ExternType)
+    assert(bbox_type is not None)
+
+    if self.method not in P4TreeNode.bbox_methods[bbox_type.name]:
+        error_msg = "Invalid call to method '%s' on extern instance '%s'"\
+                    " in file %s at line %d:"\
+                    " this is not a valid method for extern type '%s'"\
+                    % (self.method, self.extern_instance.name,
+                       self.filename, self.lineno, bbox_type.name)
+        P4TreeNode.print_error(error_msg)
+        return
+    method = P4TreeNode.bbox_methods[bbox_type.name][self.method]
+
+    num_params = len(method.param_list)
+    num_args = len(self.arg_list)
+    required = num_params
+    for param in method.param_list:
+        if "optional" in param[2]:
+            required -= 1
+
+    if num_params == required and num_params != num_args:
+        error_msg = "Extern method '%s' expected %d arguments but got %d"\
+                    " in file %s at line %d"\
+                    % (self.method, num_params, num_args,
+                       self.filename, self.lineno)
+        P4TreeNode.print_error(error_msg)
+    elif num_args < required:
+        error_msg = "Extern method '%s' expected at least %d arguments but only got %d"\
+                    " in file %s at line %d"\
+                    % (self.method, num_params, num_args,
+                       self.filename, self.lineno)
+        P4TreeNode.print_error(error_msg)
+    elif num_args > num_params:
+        error_msg = "Extern method '%s' can only accept %d arguments but got %d"\
+                    " in file %s at line %d"\
+                    % (self.method, num_params, num_args,
+                       self.filename, self.lineno)
+        P4TreeNode.print_error(error_msg)
 
 def check_P4Table(self, symbols, header_fields, objects, types = None):
     if self.size is None and self.min_size is not None and self.max_size is not None:
@@ -1196,21 +1499,24 @@ def check_P4CurrentExpression(self, symbols, header_fields, objects, types = Non
     pass
 
 def check_P4BoolBinaryExpression(self, symbols, header_fields, objects, types = None):
-    self.left.check(symbols, header_fields, objects, {Types.bool_})
-    self.right.check(symbols, header_fields, objects, {Types.bool_})
+    self.left.check(symbols, header_fields, objects, {Types.bool_, Types.local})
+    self.right.check(symbols, header_fields, objects, {Types.bool_, Types.local})
 
 def check_P4BoolUnaryExpression(self, symbols, header_fields, objects, types = None):
-    self.right.check(symbols, header_fields, objects, {Types.bool_})
+    self.right.check(symbols, header_fields, objects, {Types.bool_, Types.local})
 
 def check_P4ValidExpression(self, symbols, header_fields, objects, types = None):
     self.header_ref.check(symbols, header_fields, objects, {Types.header_instance})
 
 def check_P4BinaryExpression(self, symbols, header_fields, objects, types = None):
-    self.left.check(symbols, header_fields, objects, {Types.field, Types.int_})
-    self.right.check(symbols, header_fields, objects, {Types.field, Types.int_})
+    self.left.check(symbols, header_fields, objects,
+                    {Types.field, Types.int_, Types.local})
+    self.right.check(symbols, header_fields, objects,
+                     {Types.field, Types.int_, Types.local})
 
 def check_P4UnaryExpression(self, symbols, header_fields, objects, types = None):
-    self.right.check(symbols, header_fields, objects, {Types.field, Types.int_})
+    self.right.check(symbols, header_fields, objects,
+                     {Types.field, Types.int_, Types.local})
 
 
 def check_P4ParserException(self, symbols, header_fields, objects, types = None):

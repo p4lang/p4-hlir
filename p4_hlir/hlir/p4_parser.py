@@ -107,6 +107,7 @@ P4_DEFAULT = p4_parse_state_keywords.P4_DEFAULT
 parse_call = p4_create_enum("parse_call", [
     "extract",
     "set",
+    "method",
     "counter_init",
     "counter_dec"
 ])
@@ -174,6 +175,29 @@ class p4_parse_state (p4_object):
                     assert(False)
 
                 self.call_sequence[idx] = (parse_call.set, metadata_field_ref, metadata_value)
+            elif call_type == "method":
+                bbox = hlir.p4_extern_instances.get(call[1], None)
+                if bbox:
+                    method_obj = bbox.methods.get(call[2], None)
+                    if method_obj:
+                        call_args = call[3]
+                        try:
+                            method_obj.validate_arguments(hlir, call_args)
+                        except p4_compiler_msg as p:
+                            p.filename = self.filename
+                            p.lineno = self.lineno
+                            raise
+                        self.call_sequence[idx] = (parse_call.method, method_obj, call_args)
+                    else:
+                        raise p4_compiler_msg(
+                            "Reference to undefined method '%s.%s'" % (bbox.name, call[2]),
+                            self.filename, self.lineno
+                        )
+                else:
+                    raise p4_compiler_msg(
+                        "Reference to undefined extern '%s'" % call[1],
+                        self.filename, self.lineno
+                    )
 
     def build_return (self, hlir):
         return_type = self.return_statement[0]

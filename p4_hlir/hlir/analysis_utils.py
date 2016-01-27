@@ -55,6 +55,30 @@ def get_all_subfields(field, field_set):
     else:
         assert(False)
 
+def _retrieve_from_bbox_method(method, fields_write, fields_read):
+
+    def process_expression(expr, target):
+        if isinstance(expr, p4.p4_field):
+            get_all_subfields(expr, target)
+        elif isinstance(expr, p4.p4_expression):
+            process_expression(expr.left, target)
+            process_expression(expr.right, target)
+
+    def add_attrs(attr_names, bbox_instance, target):
+        for attr_name in attr_names:
+            if attr_name not in bbox_instance.attributes:
+                # must be an optional attribute
+                continue
+            attr = bbox_instance.attributes[attr_name]
+            process_expression(attr, target)
+            
+    access = method.access
+    bbox_instance = method.parent
+    if "writes" in access:
+        add_attrs(access["writes"], bbox_instance, fields_write)
+    if "reads" in access:
+        add_attrs(access["reads"], bbox_instance, fields_read)
+
 # Retrieve all the fields touched by an action. Returns a tuple (fields_read,
 # fields_write, fields_all) of 3 sets. Use a cache (dictionary indexed by
 # action) for better performance
@@ -67,6 +91,9 @@ def retrieve_from_one_action(action):
     action_fields = set()
     for call in action.flat_call_sequence:
         primitive = call[0]
+        if isinstance(primitive, p4.p4_extern_method):
+            _retrieve_from_bbox_method(primitive, 
+                                       action_fields_write, action_fields_read)
         args = call[1]
         assert(len(primitive.flat_call_sequence) == 0)
         for index, arg in enumerate(args):

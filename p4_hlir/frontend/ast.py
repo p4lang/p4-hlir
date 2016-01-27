@@ -13,26 +13,41 @@
 # limitations under the License.
 
 class Types:
-    (header_type,
-     header_instance,
-     header_instance_regular,
-     header_instance_metadata,
-     field,
-     field_list,
-     field_list_calculation,
-     int_, bool_, string_,
-     value_set,
-     parser_function,
-     counter,
-     meter,
-     register,
-     primitive_action,
-     action_function,
-     table,
-     action_profile,
-     action_selector,
-     control_function,
-     parser_exception) = range(22)
+
+    type_count=0
+    while True:
+        try: (
+            # TYPE LIST:
+            header_type,
+            header_instance,
+            header_instance_regular,
+            header_instance_metadata,
+            field,
+            field_list,
+            field_list_calculation,
+            int_, bool_, string_,
+            value_set,
+            parser_function,
+            counter,
+            meter,
+            register,
+            primitive_action,
+            action_function,
+            table,
+            action_profile,
+            action_selector,
+            control_function,
+            parser_exception,
+            extern_type,
+            extern_instance,
+            type_spec,
+            local,
+            extern_attribute,
+        ) = range(type_count)
+        except:
+            type_count += 1
+            continue
+        break
 
     types_to_names = {
         header_type : "header type",
@@ -54,12 +69,34 @@ class Types:
         action_selector : "action_selector",
         control_function : "control function",
         int_ : "integer value",
+        bool_ : "boolean value",
+        string_ : "string value",
         parser_exception : "parser_exception",
+        extern_type : "extern type",
+        extern_instance : "extern instance",
+        type_spec : "type specification",
+        local : "local variable",
+        extern_attribute : "extern attribute",
     }
 
     @staticmethod
     def get_name(type_):
-        return Types.types_to_names[type_]
+        def get_one_type(t):
+            try:
+                return Types.types_to_names[t]
+            except:
+                assert(type(t) is str)
+                return t
+        try:
+            return " ".join([get_one_type(t) for t in type_])
+        except:
+            return get_one_type(type_)
+
+    @staticmethod
+    def get_type(type_name):
+        for type_, name in Types.types_to_names.items():
+            if name == type_name:
+                return type_
 
 class P4TreeNode(object):
     errors_cnt = 0
@@ -166,6 +203,26 @@ class P4HeaderRefExpression(P4RefExpression):
     def __init__(self, filename, lineno, header, idx = None):
         super(P4HeaderRefExpression, self).__init__(filename, lineno, header)
         self.idx = idx
+
+class P4TypedRefExpression(P4RefExpression):
+    def __init__(self, filename, lineno, name, type_):
+        super(P4TypedRefExpression, self).__init__(filename, lineno, name)
+        self.type_ = type_
+
+class P4UserHeaderRefExpression(P4RefExpression):
+    def __init__(self, filename, lineno, name, header_type):
+        super(P4UserHeaderRefExpression, self).__init__(filename, lineno, name)
+        self.header_type = header_type
+
+class P4UserMetadataRefExpression(P4RefExpression):
+    def __init__(self, filename, lineno, name, header_type):
+        super(P4UserMetadataRefExpression, self).__init__(filename, lineno, name)
+        self.header_type = header_type
+
+class P4UserExternRefExpression(P4RefExpression):
+    def __init__(self, filename, lineno, name, bbox_type):
+        super(P4UserExternRefExpression, self).__init__(filename, lineno, name)
+        self.bbox_type = bbox_type
 
 # header ref can be latest !
 class P4FieldRefExpression(P4Expression):
@@ -368,6 +425,71 @@ class P4ActionCall(P4TreeNode):
         self.action = name
         self.arg_list = arg_list
 
+class P4ExternType(P4NamedObject):
+    def __init__(self, filename, lineno, name, members = []):
+        super(P4ExternType, self).__init__(filename, lineno, name)
+        self.members = members
+
+    def get_type_(self):
+        return Types.extern_type
+
+class P4ExternTypeMember(P4TreeNode):
+    def __init__(self, filename, lineno):
+        super(P4ExternTypeMember, self).__init__(filename, lineno)
+        # reverse "pointer"
+        self._bbox_type = None
+
+class P4ExternTypeAttribute(P4ExternTypeMember):
+    def __init__(self, filename, lineno, name, properties):
+        super(P4ExternTypeAttribute, self).__init__(filename, lineno)
+        self.name = name
+        self.properties = properties
+
+class P4ExternTypeAttributeProp(P4TreeNode):
+    def __init__(self, filename, lineno, name, value):
+        super(P4ExternTypeAttributeProp, self).__init__(filename, lineno)
+        self.name = name
+        self.value = value
+        # reverse "pointer"
+        self._bbox_type_attr = None
+
+class P4ExternTypeMethod(P4ExternTypeMember):
+    def __init__(self, filename, lineno, name, param_list, attr_access):
+        super(P4ExternTypeMethod, self).__init__(filename, lineno)
+        self.name = name
+        self.param_list = param_list
+        self.attr_access = attr_access
+
+class P4ExternTypeMethodAccess(P4TreeNode):
+    def __init__(self, filename, lineno, type_, attrs):
+        super(P4ExternTypeMethodAccess, self).__init__(filename, lineno)
+        self.type_ = type_
+        self.attrs = attrs
+
+class P4ExternInstance(P4NamedObject):
+    def __init__(self, filename, lineno, name, extern_type, attributes = []):
+        super(P4ExternInstance, self).__init__(filename, lineno, name)
+        self.attributes = attributes
+        self.extern_type = extern_type
+
+    def get_type_(self):
+        return Types.extern_instance
+
+class P4ExternInstanceAttribute(P4TreeNode):
+    def __init__(self, filename, lineno, name, value):
+        super(P4ExternInstanceAttribute, self).__init__(filename, lineno)
+        self.name = name
+        self.value = value
+        # reverse "pointer"
+        self._bbox_instance = None
+
+class P4ExternMethodCall(P4TreeNode):
+    def __init__(self, filename, lineno, extern_instance, method, arg_list = []):
+        super(P4ExternMethodCall, self).__init__(filename, lineno)
+        self.extern_instance = extern_instance
+        self.method = method
+        self.arg_list = arg_list
+
 class P4Table(P4NamedObject):
     def __init__(self, filename, lineno, name, action_spec, action_profile,
                  reads = [], min_size = None, max_size = None, size = None,
@@ -545,3 +667,12 @@ class P4Bool(P4Expression):
     def __init__(self, filename, lineno, b):
         super(P4Bool, self).__init__(filename, lineno)
         self.b = b
+
+# TODO: should this really inherit from P4NamedObject?
+class P4TypeSpec(P4NamedObject):
+    def __init__(self, filename, lineno, name, qualifiers):
+        super(P4TypeSpec, self).__init__(filename, lineno, name)
+        self.qualifiers = qualifiers
+
+    def get_type_(self):
+        return Types.type_spec

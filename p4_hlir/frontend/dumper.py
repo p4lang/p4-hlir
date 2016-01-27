@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from ast import *
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 import json
 import os
 
@@ -40,6 +40,11 @@ from p4_hlir.hlir.p4_tables import (
     p4_table, p4_match_type,
     p4_action_profile, p4_action_selector
 )
+from p4_hlir.hlir.p4_extern import (
+    p4_extern_type,
+    p4_extern_instance
+)
+
 from p4_hlir.hlir.p4_expressions import p4_expression
 from p4_hlir.hlir.p4_sized_integer import p4_sized_integer
 
@@ -94,12 +99,26 @@ class P4HlirDumper:
         P4ActionSelector.dump_to_p4 = dump_to_p4_P4ActionSelector
         P4ControlFunction.dump_to_p4 = dump_to_p4_P4ControlFunction
 
+        P4ExternType.dump_to_p4 = dump_to_p4_P4ExternType
+        P4ExternInstance.dump_to_p4 = dump_to_p4_P4ExternInstance
+
+        P4ExternTypeAttribute.dump_to_p4 = dump_to_p4_P4ExternTypeAttribute
+        P4ExternTypeAttributeProp.dump_to_p4 = dump_to_p4_P4ExternTypeAttributeProp
+        P4ExternTypeMethod.dump_to_p4 = dump_to_p4_P4ExternTypeMethod
+        P4ExternTypeMethodAccess.dump_to_p4 = dump_to_p4_P4ExternTypeMethodAccess
+
+        P4ExternInstanceAttribute.dump_to_p4 = dump_to_p4_P4ExternInstanceAttribute
+
         P4RefExpression.dump_to_p4 = dump_to_p4_P4RefExpression
         P4FieldRefExpression.dump_to_p4 = dump_to_p4_P4FieldRefExpression
         P4HeaderRefExpression.dump_to_p4 = dump_to_p4_P4HeaderRefExpression
         P4String.dump_to_p4 = dump_to_p4_P4String
         P4Integer.dump_to_p4 = dump_to_p4_P4Integer
         P4Bool.dump_to_p4 = dump_to_p4_P4Bool
+        P4TypedRefExpression.dump_to_p4 = dump_to_p4_P4TypedRefExpression
+        P4UserHeaderRefExpression.dump_to_p4 = dump_to_p4_P4UserHeaderRefExpression
+        P4UserMetadataRefExpression.dump_to_p4 = dump_to_p4_P4UserMetadataRefExpression
+        P4UserExternRefExpression.dump_to_p4 = dump_to_p4_P4UserExternRefExpression
 
         P4BoolBinaryExpression.dump_to_p4 = dump_to_p4_P4BoolBinaryExpression
         P4BoolUnaryExpression.dump_to_p4 = dump_to_p4_P4BoolUnaryExpression
@@ -118,6 +137,8 @@ class P4HlirDumper:
         P4CurrentExpression.dump_to_p4 = dump_to_p4_P4CurrentExpression
 
         P4ActionCall.dump_to_p4 = dump_to_p4_P4ActionCall
+
+        P4ExternMethodCall.dump_to_p4 = dump_to_p4_P4ExternMethodCall
 
         P4TableFieldMatch.dump_to_p4 = dump_to_p4_P4TableFieldMatch
 
@@ -430,6 +451,11 @@ def dump_to_p4_P4ActionCall(self, hlir):
     arg_list = [arg.dump_to_p4(hlir) for arg in self.arg_list]
     return (self.action.dump_to_p4(hlir), arg_list)
 
+def dump_to_p4_P4ExternMethodCall(self, hlir):
+    arg_list = [arg.dump_to_p4(hlir) for arg in self.arg_list]
+    return ("method", self.extern_instance.dump_to_p4(hlir),
+            self.method, arg_list)
+
 def dump_to_p4_P4Table(self, hlir):
     match_fields = [read.dump_to_p4(hlir) for read in self.reads]
     if self.action_spec:
@@ -700,7 +726,6 @@ def dump_to_p4_P4ParserExceptionDrop(self, hlir):
 def dump_to_p4_P4ParserExceptionReturn(self, hlir):
     return self.control_function.dump_to_p4(hlir)
 
-
 def eval_P4BinaryExpression(self, hlir):
     left = self.left.dump_to_p4(hlir)
     right = self.right.dump_to_p4(hlir)
@@ -715,3 +740,75 @@ def eval_P4UnaryExpression(self, hlir):
 
 def eval_P4Integer(self, hlir):
     return self.i
+
+# Usually I make sure that the signature is always the same, but is it so
+# important ...
+def dump_to_p4_P4ExternTypeAttribute(self, hlir, attributes, methods):
+    properties = [p.dump_to_p4(hlir) for p in self.properties]
+    attributes += [(self.name, properties)]
+
+def dump_to_p4_P4ExternTypeAttributeProp(self, hlir):
+    # TODO: avoid this switch
+    if isinstance(self.value, list):
+        value = [v.dump_to_p4(hlir) for v in self.value]
+    elif isinstance(self.value, P4TypeSpec):
+        # TODO: fix this
+        value = self.value
+    elif isinstance(self.value, bool):
+        value = self.value
+    else:
+        assert(0)
+    return (self.name, value)
+
+def dump_to_p4_P4ExternTypeMethod(self, hlir, attributes, methods):
+    access = defaultdict(set)
+    for a in self.attr_access:
+        a.dump_to_p4(hlir, access)
+    methods += [(self.name, self.param_list, access)]
+
+def dump_to_p4_P4ExternTypeMethodAccess(self, hlir, access):
+    access[self.type_].update(set([a.dump_to_p4(hlir) for a in self.attrs]))
+
+def dump_to_p4_P4ExternType(self, hlir):
+    attributes = []
+    methods = []
+    for member in self.members:
+        member.dump_to_p4(hlir, attributes, methods)
+
+    g_bb_type = p4_extern_type(
+        hlir,
+        self.name,
+        filename = self.filename,
+        lineno = self.lineno,
+        attributes = attributes,
+        methods = methods
+    )
+    g_bb_type._pragmas = self._pragmas.copy()
+
+def dump_to_p4_P4ExternInstance(self, hlir):
+    attributes = [attr.dump_to_p4(hlir) for attr in self.attributes]
+
+    g_bb_inst = p4_extern_instance(
+        hlir,
+        self.name,
+        filename = self.filename,
+        lineno = self.lineno,
+        extern_type = self.extern_type,
+        attributes = attributes
+    )
+    g_bb_inst._pragmas = self._pragmas.copy()
+
+def dump_to_p4_P4ExternInstanceAttribute(self, hlir):
+    return (self.name, self.value.dump_to_p4(hlir))
+
+def dump_to_p4_P4TypedRefExpression(self, hlir):
+    return self.name
+
+def dump_to_p4_P4UserHeaderRefExpression(self, hlir):
+    return self.name
+
+def dump_to_p4_P4UserMetadataRefExpression(self, hlir):
+    return self.name
+
+def dump_to_p4_P4UserExternRefExpression(self, hlir):
+    return self.name

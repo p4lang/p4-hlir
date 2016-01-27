@@ -81,6 +81,45 @@ def p4_compiler_msg_reset():
     p4_compiler_msg.messages = []
     p4_compiler_msg.message_count = {}
 
+class p4_bitstring (object):
+
+    def __init__ (self, width, qualifiers):
+        self.width = width
+
+        self.signed = False
+        self.saturating = False
+        for elem in qualifiers:
+            if elem == "signed":
+                self.signed = True
+            elif elem == "saturating":
+                self.saturating = True
+            else:
+                raise p4_compiler_msg(
+                    "Unrecognized bitstring qualifier '%s'" % elem
+                )
+
+    def __repr__(self):
+        qualifiers = []
+        qualifiers.append(str(self.width))
+        if self.signed:
+            qualifiers.append("signed")
+        if self.saturating:
+            qualifiers.append("saturating")
+        return "bit<%s>" % (",".join(qualifiers))
+
+    def __eq__(self, other):
+        if isinstance(other, p4_bitstring):
+            return (
+                self.width == other.width and
+                self.signed == other.signed and 
+                self.saturating == other.saturating
+            )
+        else:
+            return False
+    def __ne__(self, other):
+        return (not self.__eq__(other))
+    def __hash__(self):
+        return hash(self.__repr__())
 
 class p4_enum (object):
     """
@@ -195,3 +234,14 @@ class p4_object(object):
     def __repr__ (self):
         return self.__class__.__name__ + "." + self.name
 
+#############################################################################
+## Enums for various pieces of the HLIR
+
+p4_action_keywords = p4_create_enum("p4_action_keywords", [
+    "P4_READ",
+    "P4_WRITE",
+    "P4_READ_WRITE",
+])
+P4_READ = p4_action_keywords.P4_READ
+P4_WRITE = p4_action_keywords.P4_WRITE
+P4_READ_WRITE = p4_action_keywords.P4_READ_WRITE

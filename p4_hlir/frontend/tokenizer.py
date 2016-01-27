@@ -51,10 +51,17 @@ class P4Lexer:
         print s, "in file", self.filename, "at line", self.get_lineno()
 
     keywords = (
+        'INT', 'BIT', 'VARBIT', 'VOID',
         'IF', 'ELSE', 'SELECT',
         # 'SWITCH',
         'SIGNED', 'SATURATING',
         'FIELDS', 'LENGTH', 'MAX_LENGTH',
+        'IN', 'OUT', 'INOUT', 'OPTIONAL',
+        'EXTERN_TYPE',
+        'EXTERN',
+        'ATTRIBUTE','EXPRESSION_LOCAL_VARIABLES',
+        'STRING', 'EXPRESSION', 'BLOCK',
+        'METHOD',
         'HEADER_TYPE',
         'HEADER',
         'LAST',
@@ -114,7 +121,9 @@ class P4Lexer:
     tokens = (
         # identifiers
         'ID',
-        
+        'SINGLE_LINE_ATTR',
+        'MULTI_LINE_ATTR',
+
         # constants
         'INT_CONST_DEC', 'INT_CONST_HEX',
 
@@ -187,6 +196,11 @@ class P4Lexer:
     string_char = r"""([^"\\\n]|"""+escape_sequence+')'
     string_literal = '"'+string_char+'*"'
 
+    def t_EXTERN(self, t):
+        r'extern\s'
+        t.lexer.push_state('bboxheader')
+        return t
+
     def t_PRAGMA(self, t):
         r'@pragma'
         t.lexer.begin('pragma')
@@ -206,19 +220,22 @@ class P4Lexer:
         return t
 
     ##
-    ## Lexer states: used for preprocessor \n-terminated directives
+    ## Lexer states: used for preprocessor \n-terminated directives and
+    #                extern attributes
     ##
     states = (
         # ppline: preprocessor line directives
         #
         ('ppline', 'exclusive'),
         ('pragma', 'exclusive'),
+        ('bboxheader', 'exclusive'),
+        ('bbox', 'exclusive'),
     )
 
     def t_PPHASH(self, t):
         r'\#'
         if self.line_pattern.match(t.lexer.lexdata, pos=t.lexer.lexpos):
-            t.lexer.begin('ppline')
+            t.lexer.push_state('ppline')
             self.pp_line = self.pp_filename = None
         else:
             return t
@@ -237,6 +254,89 @@ class P4Lexer:
         r'.+'
         return t
         
+
+    ##
+    ## Rules for the bbox state
+    ##
+
+    # header tokenization
+
+    @TOKEN(identifier)
+    def t_bboxheader_ID(self, t):
+        t.type = self.keywords_map.get(t.value, "ID")
+        return t
+
+    @TOKEN(t_SEMI)
+    def t_bboxheader_SEMI(self, t):
+        t.type = self.keywords_map.get(t.value, "SEMI")
+        t.lexer.begin('INITIAL')
+        return t
+
+    @TOKEN(t_LBRACE)
+    def t_bboxheader_LBRACE(self, t):
+        t.type = self.keywords_map.get(t.value, "LBRACE")
+        t.lexer.begin('bbox')
+        return t
+
+    def t_bboxheader_NEWLINE(self, t):
+        r'\n+'
+        t.lexer.lineno += t.value.count("\n")
+
+    def t_bboxheader_error(self,t):
+        self._error("illegal character '%s'" % t.value[0], t)
+        t.lexer.skip(1)
+
+    # body tokenization
+
+    def t_bbox_NEWLINE(self, t):
+        r'\n+'
+        t.lexer.lineno += t.value.count("\n")
+
+    single_line_attr = r"(?P<id>"+identifier+r")\s*:(?P<val>[^;\n]+);"
+    @TOKEN(single_line_attr)
+    def t_bbox_SINGLE_LINE_ATTR(self, t):
+        t.value = t.lexer.lexmatch.group("id","val")
+        return t
+
+    single_line_attr_error = r"(?P<id>"+identifier+r")\s*:(?P<val>[^;]+)\n"
+    @TOKEN(single_line_attr_error)
+    def t_bbox_SINGLE_LINE_ATTR_error(self, t):
+        self._error("unexpected linebreak in attribute '%s'" % t.lexer.lexmatch.group("id"), t)
+        t.lexer.skip(1)
+
+    valueless_attr = r"(?P<id>"+identifier+r")\s*;"
+    @TOKEN(valueless_attr)
+    def t_bbox_VALUELESS_ATTR(self, t):
+        t.value = t.lexer.lexmatch.group("id")
+        t.type = self.keywords_map.get(t.value, "ID")
+        return t
+
+    multi_line_attr = r"(?P<id>"+identifier+r")\s*\{(?P<val>[^\}]*)}"
+    @TOKEN(multi_line_attr)
+    def t_bbox_MULTI_LINE_ATTR(self, t):
+        t.lexer.lineno += t.value.count("\n")
+        t.value = t.lexer.lexmatch.group("id","val")
+        return t
+
+    def t_bbox_END_BBOX(self, t):
+        r'\}'
+        t.type = self.keywords_map.get(t.value, "RBRACE")
+        t.lexer.begin('INITIAL')
+        return t
+
+    @TOKEN(identifier)
+    def t_bbox_bad_attribute_error(self,t):
+        self._error("bad attribute specification '%s'" % t.value, t)
+        t.lexer.skip(1)
+
+    def t_bbox_error(self,t):
+        self._error("illegal character '%s'" % t.value[0], t)
+        t.lexer.skip(1)
+
+    # block tokenization
+
+    t_bbox_ignore = ' \t'
+    t_bboxheader_ignore = ' \t'
 
     ##
     ## Rules for the ppline state
@@ -267,7 +367,7 @@ class P4Lexer:
             if self.pp_filename is not None:
                 self.filename = self.pp_filename
 
-        t.lexer.begin('INITIAL')
+        t.lexer.pop_state()
 
     def t_ppline_PPLINE(self, t):
         r'line'

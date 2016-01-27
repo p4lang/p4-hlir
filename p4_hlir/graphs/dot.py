@@ -43,18 +43,18 @@ def dump_table(node, exit_node, visited=None):
         p += "   %s [shape=box label=\"%s\"];\n" % (get_call_name(node), str(node.condition))
             
     for label, next_node in node.next_.items():
-        if type(node) is p4.p4_table:
-            arrowhead = "normal"
-            if type(label) is str:
-                label_str = " label=\"%s\"" % label
-            else:
-                label_str = " label=\"%s\"" % label.name
-        elif type(node) is p4.p4_conditional_node:
+        if type(node) is p4.p4_conditional_node:
             label_str = ""
             if label:
                 arrowhead = "dot"
             else:
                 arrowhead = "odot"
+        else:
+            arrowhead = "normal"
+            if type(label) is str:
+                label_str = " label=\"%s\"" % label
+            else:
+                label_str = " label=\"%s\"" % label.name
         p += "   %s -> %s [arrowhead=%s%s];\n" % (get_call_name(node),
                                                 get_call_name(next_node, exit_node),
                                                 arrowhead, label_str)

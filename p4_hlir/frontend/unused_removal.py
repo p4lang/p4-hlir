@@ -14,11 +14,96 @@
 
 from ast import *
 
+def get_ast_type(type_):
+    types_to_ast_types = {
+        Types.header_type : P4HeaderType,
+        Types.header_instance : P4HeaderInstance,
+        Types.header_instance_regular : P4HeaderInstanceRegular,
+        Types.header_instance_metadata : P4HeaderInstanceMetadata,
+        Types.field_list : P4FieldList,
+        Types.field_list_calculation : P4FieldListCalculation,
+        Types.value_set : P4ValueSet,
+        Types.parser_function : P4ParserFunction,
+        Types.counter : P4Counter,
+        Types.meter : P4Meter,
+        Types.register : P4Register,
+        Types.primitive_action : P4PrimitiveAction,
+        Types.action_function : P4ActionFunction,
+        Types.table : P4Table,
+        Types.action_profile : P4ActionProfile,
+        Types.action_selector : P4ActionSelector,
+        Types.control_function : P4ControlFunction,
+        Types.parser_exception : P4ParserException,
+        Types.extern_type : P4ExternType,
+        Types.extern_instance : P4ExternInstance,
+        Types.type_spec : P4TypeSpec,
+    }
+
+    return types_to_ast_types[type_]
 
 def mark_used_P4Program(self, objects, types = None):
     for obj in self.objects:
         obj.mark_used(objects)
 
+def mark_used_P4ExternType(self, objects, types = None):
+    for member in self.members:
+        member.mark_used(objects)
+
+def mark_used_P4TypeSpec(self, objects, types = None):
+    if self.name == "header" or self.name == "metadata":
+        type_ = P4HeaderType
+        subtype = self.qualifiers["subtype"]
+    elif self.name == "extern":
+        type_ = P4ExternType
+        subtype = self.qualifiers["subtype"]
+    else:
+        return
+    obj = objects.get_object(subtype, type_)
+    obj.mark()
+
+def mark_used_P4ExternTypeAttributeProp(self, objects, types = None):
+    if self.name == "type":
+        assert(isinstance(self.value, P4TypeSpec))
+        self.value.mark_used(objects)
+
+def mark_used_P4ExternTypeAttribute(self, objects, types = None):
+    for prop in self.properties:
+        prop.mark_used(objects)
+
+def mark_used_P4ExternTypeMethod(self, objects, types = None):
+    for param in self.param_list:
+        # param is qualifier, type_spec, id
+        assert(isinstance(param[1], P4TypeSpec))
+        param[1].mark_used(objects)
+
+def mark_used_P4TypedRefExpression(self, objects, types = None):
+    ast_type = get_ast_type(Types.get_type(self.type_))
+    # call P4RefExpression.mark_used
+    return super(P4TypedRefExpression, self).mark_used(objects, {ast_type})
+
+def mark_used_P4UserHeaderRefExpression(self, objects, types = None):
+    header_instance = objects.get_object(self.name, P4HeaderInstance)
+    if header_instance: header_instance.mark()
+
+def mark_used_P4UserMetadataRefExpression(self, objects, types = None):
+    header_instance = objects.get_object(self.name, P4HeaderInstance)
+    if header_instance: header_instance.mark()
+
+def mark_used_P4UserExternRefExpression(self, objects, types = None):
+    bbox_instance = objects.get_object(self.name, P4ExternInstance)
+    if bbox_instance: bbox_instance.mark()
+
+def mark_used_P4ExternInstance(self, objects, types = None):
+    for attr in self.attributes:
+        attr.mark_used(objects)
+
+    extern_type = objects.get_object(self.extern_type, P4ExternType)
+    if extern_type:
+        extern_type.mark()
+
+def mark_used_P4ExternInstanceAttribute(self, objects, types = None):
+    self.value.mark_used(objects)
+        
 def mark_used_P4HeaderType(self, objects, types = None):
     pass
 
@@ -95,6 +180,16 @@ def mark_used_P4ActionCall(self, objects, types = None):
             {P4HeaderInstance, P4FieldList, P4FieldListCalculation, P4Counter,
              P4Meter, P4Register}
         )
+
+def mark_used_P4ExternMethodCall(self, objects, types = None):
+    self.extern_instance.mark_used(objects, {P4ExternInstance})
+
+    for arg in self.arg_list:
+        arg.mark_used(
+            objects,
+            {P4HeaderInstance, P4FieldList, P4FieldListCalculation, P4Counter,
+             P4Meter, P4Register}
+        )    
 
 def mark_used_P4Table(self, objects, types = None):
     for field_match in self.reads:
@@ -262,6 +357,8 @@ def mark_used_P4ParserExceptionReturn(self, objects, types = None):
 
 
 P4Program.mark_used = mark_used_P4Program
+P4ExternType.mark_used = mark_used_P4ExternType
+P4ExternInstance.mark_used = mark_used_P4ExternInstance
 P4HeaderType.mark_used = mark_used_P4HeaderType
 P4HeaderInstance.mark_used = mark_used_P4HeaderInstance
 P4FieldList.mark_used = mark_used_P4FieldList
@@ -279,6 +376,8 @@ P4ActionProfile.mark_used = mark_used_P4ActionProfile
 P4ActionSelector.mark_used = mark_used_P4ActionSelector
 P4ControlFunction.mark_used = mark_used_P4ControlFunction
 
+P4TypeSpec.mark_used = mark_used_P4TypeSpec
+
 P4RefExpression.mark_used = mark_used_P4RefExpression
 P4FieldRefExpression.mark_used = mark_used_P4FieldRefExpression
 P4HeaderRefExpression.mark_used = mark_used_P4HeaderRefExpression
@@ -286,6 +385,10 @@ P4RefExpression.mark_used = mark_used_P4RefExpression
 P4String.mark_used = mark_used_P4String
 P4Integer.mark_used = mark_used_P4Integer
 P4Bool.mark_used = mark_used_P4Bool
+P4TypedRefExpression.mark_used = mark_used_P4TypedRefExpression
+P4UserHeaderRefExpression.mark_used = mark_used_P4UserHeaderRefExpression
+P4UserMetadataRefExpression.mark_used = mark_used_P4UserMetadataRefExpression
+P4UserExternRefExpression.mark_used = mark_used_P4UserExternRefExpression
 
 P4BoolBinaryExpression.mark_used = mark_used_P4BoolBinaryExpression
 P4BoolUnaryExpression.mark_used = mark_used_P4BoolUnaryExpression
@@ -304,6 +407,14 @@ P4ParserParseError.mark_used = mark_used_P4ParserParseError
 P4CurrentExpression.mark_used = mark_used_P4CurrentExpression
 
 P4ActionCall.mark_used = mark_used_P4ActionCall
+
+P4ExternTypeAttribute.mark_used = mark_used_P4ExternTypeAttribute
+P4ExternTypeAttributeProp.mark_used = mark_used_P4ExternTypeAttributeProp
+P4ExternTypeMethod.mark_used = mark_used_P4ExternTypeMethod
+
+P4ExternInstanceAttribute.mark_used = mark_used_P4ExternInstanceAttribute
+
+P4ExternMethodCall.mark_used = mark_used_P4ExternMethodCall
 
 P4TableFieldMatch.mark_used = mark_used_P4TableFieldMatch
 
@@ -346,5 +457,3 @@ def remove_unused_P4Program(self, objects):
         self.objects = new_objects
 
 P4Program.remove_unused = remove_unused_P4Program
-
-

@@ -28,6 +28,16 @@ import pkg_resources
 
 logger = logging.getLogger(__name__)
 
+import inspect
+import sys
+
+def target_root():
+    global __file__
+    if not hasattr(sys.modules[__name__], '__file__'):
+        __file__ = inspect.getfile(inspect.currentframe())
+    m_path = os.path.dirname(os.path.realpath(__file__))
+    return m_path
+
 class HLIR():
     def __init__(self, *args):
         self.source_files = [] + list(args)
@@ -37,6 +47,8 @@ class HLIR():
 
         self.p4_objects = []
 
+        self.p4_extern_types = OrderedDict()
+        self.p4_extern_instances = OrderedDict()
         self.p4_actions = OrderedDict()
         self.p4_control_flows = OrderedDict()
         self.p4_headers = OrderedDict()
@@ -55,6 +67,7 @@ class HLIR():
         self.p4_action_profiles = OrderedDict()
         self.p4_action_selectors = OrderedDict()
         self.p4_conditional_nodes = OrderedDict()
+        self.p4_action_nodes = OrderedDict()
 
         self.calculated_fields = []
 
@@ -83,6 +96,8 @@ class HLIR():
         if len(self.source_files) == 0:
             print "no source file to process"
             return False
+
+        self.preprocessor_args.append("-I"+os.path.join(target_root(), "p4_lib"))
 
         # Preprocess all program text
         preprocessed_sources = []
@@ -162,6 +177,80 @@ class HLIR():
 
     def _check_source_path(self, source):
         return os.path.isfile(source)
+
+    _type_map = {
+        "string" : str,
+        "block" : str,
+        "int" : int,
+        "expression" : p4.p4_expression,
+        "bit" : p4.p4_field,
+        "varbit" : p4.p4_field,
+        "field_list" : p4.p4_field_list,
+        "parser" : p4.p4_parse_state,
+        "parser_exception" : p4.p4_parser_exception,
+        "action" : p4.p4_action,
+        "table" : p4.p4_table,
+        "control" : p4.p4_control_flow,
+        "header" : p4.p4_header_instance,
+        "metadata" : p4.p4_header_instance,
+        "extern" : p4.p4_extern_instance,
+        "counter" : p4.p4_counter,
+        "meter" : p4.p4_meter,
+        "register" : p4.p4_register,
+        "field_list_calculation" : p4.p4_field_list_calculation,
+        "parser_value_set" : p4.p4_parse_value_set,
+    }
+
+    def _type_spec_to_hlir(self, type_spec):
+        obj_type = type_spec.name
+
+        try:
+            return HLIR._type_map[obj_type]
+        except:
+            # TODO: remove when semantic checking complete
+            raise p4_compiler_msg (
+                "Unexpected type '%s'" % obj_type
+            )
+
+    def _resolve_object(self, type_spec, value, filename=None, lineno=None):
+        obj_type = type_spec.name
+        # TODO: improve
+        if type(value) is not str:
+            return value
+        assert(type(value) is str)
+        if obj_type == "string":
+            return value
+        elif obj_type == "block":
+            return value
+        elif obj_type == "header" or obj_type == "metadata":
+            obj = self.p4_header_instances[value]
+            assert(obj)
+            return obj
+        elif obj_type == "extern":
+            obj = self.p4_extern_instances[value]
+            assert(obj)
+            return obj
+        elif obj_type == "bit" or obj_type == "varbit":
+            obj = self.p4_fields[value]
+            assert(obj)
+            return obj
+        elif obj_type == "expression":
+            # could be a field
+            try:
+                return self.p4_fields[value]
+            except:
+                pass
+            # local variable...
+            return value
+        else:
+            try:
+                return HLIR._type_map[obj_type].get_from_hlir(self, value)
+            
+            # TODO: remove when semantic checking complete
+            except KeyError:
+                raise p4.p4_compiler_msg(
+                    "Reference to undefined %s '%s'" % (obj_type.replace("_"," "), value)
+                )
 
 def HLIR_from_txt (program_str, **kwargs):
     h = HLIR()

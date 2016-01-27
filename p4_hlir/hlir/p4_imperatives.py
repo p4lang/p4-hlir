@@ -16,24 +16,14 @@ from p4_core import *
 from p4_expressions import *
 import p4_headers
 import p4_tables
+import p4_extern
 import p4_stateful
-import p4_imperatives
 
 import logging
 
 
 #############################################################################
 ## Actions
-
-p4_action_keywords = p4_create_enum("p4_action_keywords", [
-    "P4_READ",
-    "P4_WRITE",
-    "P4_READ_WRITE",
-])
-P4_READ = p4_action_keywords.P4_READ
-P4_WRITE = p4_action_keywords.P4_WRITE
-P4_READ_WRITE = p4_action_keywords.P4_READ_WRITE
-
 
 class p4_table_entry_data(object):
     """
@@ -101,7 +91,26 @@ class p4_action (p4_object):
                     self.required_params -= 1
 
         for idx, call in enumerate(self.call_sequence):
-            name, arg_list = call
+            if len(call) == 2:
+                action_name, arg_list = call
+                called_action = hlir.p4_actions[action_name]
+            elif len(call) == 4 and call[0] == "method":
+                _, bbox_name, method_name, arg_list = call
+                bbox = hlir.p4_extern_instances.get(bbox_name, None)
+                if bbox:
+                    method = bbox.methods.get(method_name, None)
+                    if method_name:
+                        called_action = method
+                    else:
+                        raise p4_compiler_msg (
+                            "Reference to undefined method '%s.%s'" % (bbox_name, method_name),
+                            self.filename, self.lineno
+                        )
+                else:
+                    raise p4_compiler_msg (
+                        "Reference to undefined extern instance '%s'" % bbox_name,
+                        self.filename, self.lineno
+                    )
 
             def resolve_expression(arg):
                 if isinstance(arg, p4_expression):
@@ -117,7 +126,7 @@ class p4_action (p4_object):
                 arg_list[arg_idx] = resolve_expression(arg)
 
             self.call_sequence[idx] = (
-                hlir.p4_actions[name],
+                called_action,
                 list(arg_list)
             )
 
@@ -213,6 +222,11 @@ class p4_action (p4_object):
                     b_action = hlir.p4_actions[binding_action]
                     filename = b_action.filename
                     lineno = b_action.lineno
+                # this case is broken because p4_extern_method has no
+                # filename / lineno attributes
+                elif isinstance(self, p4_extern.p4_extern_method):
+                    filename = ""
+                    lineno = 0
                 else:
                     filename = self.filename
                     lineno = self.lineno
@@ -251,28 +265,12 @@ class p4_action (p4_object):
                         filename, lineno
                     )
                 else:
-
-                    if type(populated_arg) is p4_stateful.p4_counter:
-                        counter = populated_arg
-                        if counter.binding != None:
-                            if counter.binding[0] == p4_stateful.P4_DIRECT:
-                                raise p4_compiler_msg (
-                                    "Illegal reference to direct-mapped counter array '"+counter.name+"' in action '"+binding_action+"'",
-                                    filename, lineno
-                                )
-                            elif counter.binding[0] == p4_stateful.P4_STATIC and counter.binding[1] != calling_table:
-                                raise p4_compiler_msg (
-                                    "Illegal reference to counter array '"+counter.name+"' in action '"+binding_action+"' called by table '"+calling_table.name+"' (counter is statically mapped to table '"+counter.binding[1].name+"')",
-                                    filename, lineno
-                                )
-
                     # Replace the original argument value with the resolved
                     # object reference
                     if binding_call != None:
                         # TODO: error on already resolved
                         original_call = hlir.p4_actions[binding_action].call_sequence[binding_call][1]
                         original_call[binding_arg] = populated_arg
-
         else:
             # Compound action
             for idx, call in enumerate(self.call_sequence):
@@ -376,6 +374,30 @@ class p4_control_flow (p4_object):
                     build_calls(hlir, call[2])
                     build_calls(hlir, call[3])
                     calls[idx] = (call[1], call[2], call[3])
+                elif call[0] == "method":
+                    bbox = hlir.p4_extern_instances.get(call[1], None)
+                    if bbox:
+                        method_obj = bbox.methods.get(call[2], None)
+                        if method_obj:
+                            call_args = call[3]
+                            try:
+                                method_obj.validate_arguments(hlir, call_args)
+                            except p4_compiler_msg as p:
+                                p.filename = self.filename
+                                p.lineno = self.lineno
+                                raise
+                            calls[idx] = (method_obj, call_args)
+                        else:
+                            raise p4_compiler_msg(
+                                "Reference to undefined method '%s.%s'" % (bbox.name, call[2]),
+                                self.filename, self.lineno
+                            )
+                    else:
+                        raise p4_compiler_msg(
+                            "Reference to undefined extern '%s'" % call[1],
+                            self.filename, self.lineno
+                        )
+
                 else:
                     assert False, "Invalid control function format: '"+str(call)+"'"
         build_calls (hlir, self.call_sequence)

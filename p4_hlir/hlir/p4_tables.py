@@ -14,6 +14,7 @@
 
 from p4_core import *
 import p4_imperatives
+import p4_extern
 import p4_headers
 import exclusive_conditions
 
@@ -106,6 +107,10 @@ class p4_table (p4_node):
 
         hlir.p4_tables[self.name] = self
 
+    @staticmethod
+    def get_from_hlir(hlir, name):
+        return hlir.p4_tables[name]
+
     def build_fields (self, hlir):
         for idx, match in enumerate(self.match_fields):
             match_field, match_type, match_mask = match
@@ -131,6 +136,32 @@ class p4_table (p4_node):
     def build (self, hlir):
         self.build_fields(hlir)
         self.build_actions(hlir)
+
+class p4_action_node (p4_table):
+    """
+    TODO: docstring
+    """
+    def __init__ (self, hlir, action, args):
+        name = "_action_"+str(len(hlir.p4_action_nodes))
+        p4_table.__init__(self, hlir, name, 
+            match_fields=[],
+            actions=[action],
+            action_profile=None,
+            min_size=1,
+            max_size=1
+        )
+
+        if not self.valid_obj:
+            return
+
+        self.args = args
+
+        self.next_[self.actions[0]] = None
+
+        hlir.p4_action_nodes[self.name] = self
+
+    def build(self, hlir):
+        pass
 
 class p4_action_profile (p4_object):
     """
@@ -215,7 +246,11 @@ def _p4_control_flow_to_table_graph(hlir,
             next_parents = [call_entry]
             call_entry.control_flow_parent = parent_fn.name
             call_entry.conditional_barrier = conditional_barrier
-
+        elif type(call) is tuple and type(call[0]) is p4_extern.p4_extern_method:
+            call_entry = p4_action_node (hlir, call[0], call[1])
+            next_parents = [call_entry]
+            call_entry.control_flow_parent = parent_fn.name
+            call_entry.conditional_barrier = conditional_barrier
         elif type(call) is tuple and len(call) == 3:
             paths = {True: None, False: None}
             next_parents = []
@@ -337,6 +372,8 @@ def _p4_control_flow_to_table_graph(hlir,
                 conditional_barrier,
                 visited
             )
+        else:
+            assert False, "Unexpected call type '%s'" % type(call).__name__
 
         for parent in parents:
             for label, edge in parent.next_.items():
@@ -563,7 +600,8 @@ def optimize_table_graph(hlir):
                         change = True
 
     for _, p4_node in hlir.p4_nodes.items():
-        del p4_node._modified_hdrs
+        if hasattr(p4_node, "_modified_hdrs"):
+            del p4_node._modified_hdrs
 
     _purge_unused_nodes(hlir)
 
