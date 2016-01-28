@@ -509,7 +509,6 @@ def find_unused_args_P4Assignment(self, removed, used_args = None):
     self.value.find_unused_args(removed, used_args)
 
 def remove_unused_args_P4TreeNode(self, removed):
-    assert(0)
     pass
 
 def remove_unused_args_P4Program(self, removed):
@@ -1337,7 +1336,7 @@ def check_overflow(filename, lineno, value, cast_to):
                     % (filename, lineno, value, cast_to)
         P4TreeNode.print_warning(error_msg)
 
-def check_cast_(filename, lineno, cast_from, cast_to, is_copy, expr):
+def check_cast_(filename, lineno, cast_from, cast_to, expr):
     both_integers = True
     if not cast_from.is_integer_type():
         error_msg = "In file %s, at line %d: trying to cast from"\
@@ -1353,20 +1352,7 @@ def check_cast_(filename, lineno, cast_from, cast_to, is_copy, expr):
         both_integers = False
     if not both_integers:
         return False
-
     assert(cast_to.type_ == Types.bit_ or cast_to.type_ == Types.int_)
-    if (not cast_from.rvalue) and cast_from.direction == "in" and cast_to.direction != "in":
-        error_msg = "Error in file %s at line %d:"\
-                    " cannot cast lvalue expression from 'in' to non-'in'"\
-                    % (filename, lineno)
-        P4TreeNode.print_error(error_msg)
-        return False
-    if (not is_copy) and cast_from.rvalue and cast_to.direction != "in":
-        error_msg = "Error in file %s at line %d:"\
-                    " cannot use rvalue expression as 'inout'"\
-                    % (filename, lineno)
-        P4TreeNode.print_error(error_msg)
-        return False
     if cast_to.type_ == Types.int_:
         return True
     if cast_from.type_ == Types.infint_:
@@ -1385,10 +1371,11 @@ def check_cast_(filename, lineno, cast_from, cast_to, is_copy, expr):
     P4TreeNode.print_error(error_msg)
     return False
 
-def check_cast(filename, lineno, cast_from, cast_to, is_copy = False, expr = None):
+def check_cast(filename, lineno, cast_from, cast_to, expr = None):
+    # does not check direction / rvalue!
     if cast_from == cast_to:
         return True
-    is_valid = check_cast_(filename, lineno, cast_from, cast_to, is_copy, expr)
+    is_valid = check_cast_(filename, lineno, cast_from, cast_to, expr)
     return is_valid
 
 def check_ts_P4CastExpression(self, symbols, header_fields, objects):
@@ -1396,7 +1383,7 @@ def check_ts_P4CastExpression(self, symbols, header_fields, objects):
     if right_type is None:
         return None
     if not check_cast(self.filename, self.lineno,
-                      right_type, self.p4_type, is_copy=True, expr=self.right):
+                      right_type, self.p4_type, expr=self.right):
         error_msg = "In file %s, at line %d: invalid cast"\
                     % (self.filename, self.lineno)
         P4TreeNode.print_error(error_msg)
@@ -1830,10 +1817,6 @@ def check_P4ActionCall(self, symbols, header_fields, objects, types = None):
             new_args.append(arg)
             continue
 
-        if p4_type == param_type_spec.p4_type:
-            new_args.append(arg)
-            continue
-
         if (param_type_spec.p4_type.is_integer_type() != p4_type.is_integer_type()):
             error_msg = "In file %s, at line %d: error when calling primitive"\
                         " action %s, parameter %d needs to be of type %s but"\
@@ -1861,6 +1844,22 @@ def check_P4ActionCall(self, symbols, header_fields, objects, types = None):
                         " the value passed has type %s"\
                         % (arg.filename, arg.lineno, action_name, idx,
                            param_type_spec.p4_type, p4_type)
+            P4TreeNode.print_error(error_msg)
+            new_args.append(arg)
+            continue
+
+        if p4_type.rvalue and param_type_spec.p4_type.direction != "in":
+            error_msg = "Error in file %s at line %d when calling '%s': cannot"\
+                        " pass rvalue expression to 'inout' parameter '%s'"\
+                        % (arg.filename, arg.lineno, action_name, param_name)
+            P4TreeNode.print_error(error_msg)
+            new_args.append(arg)
+            continue
+
+        if (not p4_type.rvalue) and p4_type.direction == "in" and param_type_spec.p4_type.direction != "in":
+            error_msg = "Error in file %s at line %d when calling '%s':"\
+                        " cannot pass 'in' value to 'inout' parameter '%s'"\
+                        % (arg.filename, arg.lineno, action_name, param_name)
             P4TreeNode.print_error(error_msg)
             new_args.append(arg)
             continue
@@ -1904,11 +1903,17 @@ def check_P4Assignment(self, symbols, header_fields, objects, types = None):
                     % (self.filename, self.lineno)
         P4TreeNode.print_error(error_msg)
 
+    if target_type.direction == "in":
+        error_msg = "In file %s, at line %d: cannot assign to 'in' variable"\
+                    % (self.filename, self.lineno)
+        P4TreeNode.print_error(error_msg)
+        return
+
     if target_type == value_type:
         return
 
     ok_cast = check_cast(self.filename, self.lineno, value_type, target_type,
-                         is_copy=True, expr=self.value)
+                         expr=self.value)
     if ok_cast:
         # adding implicit cast in assignment
         self.value = P4CastExpression(self.filename, self.lineno,
