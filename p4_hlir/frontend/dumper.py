@@ -106,7 +106,8 @@ class P4HlirDumper:
 
         P4ExternTypeAttribute.dump_to_p4 = dump_to_p4_P4ExternTypeAttribute
         P4ExternTypeAttributeProp.dump_to_p4 = dump_to_p4_P4ExternTypeAttributeProp
-        P4ExternTypeAttributeLocals.dump_to_p4 = dump_to_p4_P4ExternTypeAttributeLocals
+        # "locals" have been removed from spec
+        # P4ExternTypeAttributeLocals.dump_to_p4 = dump_to_p4_P4ExternTypeAttributeLocals
         P4ExternTypeMethod.dump_to_p4 = dump_to_p4_P4ExternTypeMethod
         P4ExternTypeMethodAccess.dump_to_p4 = dump_to_p4_P4ExternTypeMethodAccess
 
@@ -790,8 +791,9 @@ def dump_to_p4_P4ExternTypeAttributeProp(self, hlir):
         assert(0)
     return (self.name, value)
 
-def dump_to_p4_P4ExternTypeAttributeLocals(self, hlir):
-    return self.name, [v for t, v in self.value]
+# "locals" have been removed from spec
+# def dump_to_p4_P4ExternTypeAttributeLocals(self, hlir):
+#     return self.name, [v for t, v in self.value]
 
 def dump_to_p4_P4ExternTypeMethod(self, hlir, attributes, methods):
     access = defaultdict(set)

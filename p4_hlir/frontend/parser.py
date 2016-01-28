@@ -2189,22 +2189,23 @@ class P4Parser:
         p[0] = P4ExternTypeAttributeProp(self.get_filename(), p.lineno(1),
                                          "type", tspec)
 
-    def p_extern_attribute_property_3(self, p):
-        """ extern_attribute_property : LOCAL_VARIABLES \
-                                        LBRACE locals_list RBRACE
-        """
-        p[0] = P4ExternTypeAttributeLocals(self.get_filename(), p.lineno(1),
-                                           "locals", p[3])
+    # "locals" have been removed from spec
+    # def p_extern_attribute_property_3(self, p):
+    #     """ extern_attribute_property : LOCAL_VARIABLES \
+    #                                     LBRACE locals_list RBRACE
+    #     """
+    #     p[0] = P4ExternTypeAttributeLocals(self.get_filename(), p.lineno(1),
+    #                                        "locals", p[3])
 
-    def p_locals_list_1(self, p):
-        """ locals_list : empty
-        """
-        p[0] = []
+    # def p_locals_list_1(self, p):
+    #     """ locals_list : empty
+    #     """
+    #     p[0] = []
 
-    def p_locals_list_2(self, p):
-        """ locals_list : type_declaration ID SEMI locals_list
-        """
-        p[0] = [(p[1], p[2])] + p[4]
+    # def p_locals_list_2(self, p):
+    #     """ locals_list : type_declaration ID SEMI locals_list
+    #     """
+    #     p[0] = [(p[1], p[2])] + p[4]
 
     def p_identifier_list(self, p):
         """ identifier_list : identifier_list COMMA ID

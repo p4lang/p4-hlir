@@ -40,7 +40,6 @@ class Types:
              extern_type,
              extern_instance,
              type_spec,
-             local,
              extern_attribute,
              NIL
          ) = range(type_count)
@@ -75,7 +74,6 @@ class Types:
         extern_type : "extern type",
         extern_instance : "extern instance",
         type_spec : "type specification",
-        local : "local variable",
         extern_attribute : "extern attribute",
     }
 
@@ -645,9 +643,10 @@ class P4ExternTypeAttributeProp(P4TreeNode):
         # reverse "pointer"
         self._bbox_type_attr = None
 
-class P4ExternTypeAttributeLocals(P4ExternTypeAttributeProp):
-    def __init__(self, filename, lineno, name, value):
-        super(P4ExternTypeAttributeLocals, self).__init__(filename, lineno, name, value)
+# "locals" have been removed from spec
+# class P4ExternTypeAttributeLocals(P4ExternTypeAttributeProp):
+#     def __init__(self, filename, lineno, name, value):
+#         super(P4ExternTypeAttributeLocals, self).__init__(filename, lineno, name, value)
 
 class P4ExternTypeMethod(P4ExternTypeMember):
     def __init__(self, filename, lineno, name, param_list, attr_access):

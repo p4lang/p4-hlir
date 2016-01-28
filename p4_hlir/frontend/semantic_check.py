@@ -710,8 +710,9 @@ def check_P4Program(self, symbols, header_fields, objects, types = None):
     if self.get_errors_cnt() != 0:
         return
 
-    P4TreeNode.bbox_attribute_locals = {}
-    self.find_bbox_attribute_locals(P4TreeNode.bbox_attribute_locals)
+    # "locals" have been removed from spec
+    # P4TreeNode.bbox_attribute_locals = {}
+    # self.find_bbox_attribute_locals(P4TreeNode.bbox_attribute_locals)
 
     for obj in self.objects:
         obj.check(symbols, header_fields, objects)
@@ -826,16 +827,20 @@ def check_P4ExternInstance(self, symbols, header_fields, objects, types = None):
 def check_P4ExternInstanceAttribute(self, symbols, header_fields, objects, types = None):
     bbox_type = objects.get_object(self._bbox_instance.extern_type, P4ExternType)
     assert(bbox_type is not None)
-    bbox_locals = P4TreeNode.bbox_attribute_locals[bbox_type.name]
-    my_locals = bbox_locals[self.name]
-    symbols.enterscope()
-    for local, type_spec in my_locals.items():
-        symbols.set_type(local, type_spec.p4_type)
+
+    # "locals" have been removed from spec
+    # bbox_locals = P4TreeNode.bbox_attribute_locals[bbox_type.name]
+    # my_locals = bbox_locals[self.name]
+    # symbols.enterscope()
+    # for local, type_spec in my_locals.items():
+    #     symbols.set_type(local, type_spec.p4_type)
+
     attr_type_spec = P4TreeNode.bbox_attribute_types[bbox_type.name][self.name]
     # any check needed on result?
     # I don't think so because of P4TypedRefExpression...
     self.value.check_ts(symbols, header_fields, objects)
-    symbols.exitscope()
+
+    # symbols.exitscope()
 
 def error_symbol_does_not_exist(filename, lineno, name):
     error_msg = "Invalid reference to '%s' in file %s at line %d:"\

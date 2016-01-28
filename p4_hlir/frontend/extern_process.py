@@ -186,45 +186,47 @@ def resolve_bbox_attributes_P4Program(self, bbox_attribute_types):
 
 P4Program.resolve_bbox_attributes = resolve_bbox_attributes_P4Program
 
-def find_bbox_attribute_locals_P4ExternType(self, bbox_attr_locals):
-    assert(self.name not in bbox_attr_locals)
-    bbox_attr_locals[self.name] = {}
-    for member in self.members:
-        member.find_bbox_attribute_locals(bbox_attr_locals[self.name])
+# "locals" have been removed from spec
 
-def find_bbox_attribute_locals_P4ExternTypeAttribute(self, bbox_attr_locals):
-    assert(self.name not in bbox_attr_locals)
-    bbox_attr_locals[self.name] = {}
-    for prop in self.properties:
-        prop.find_bbox_attribute_locals(bbox_attr_locals[self.name])
+# def find_bbox_attribute_locals_P4ExternType(self, bbox_attr_locals):
+#     assert(self.name not in bbox_attr_locals)
+#     bbox_attr_locals[self.name] = {}
+#     for member in self.members:
+#         member.find_bbox_attribute_locals(bbox_attr_locals[self.name])
 
-def find_bbox_attribute_locals_P4ExternTypeMethod(self, bbox_attr_locals):
-    pass
+# def find_bbox_attribute_locals_P4ExternTypeAttribute(self, bbox_attr_locals):
+#     assert(self.name not in bbox_attr_locals)
+#     bbox_attr_locals[self.name] = {}
+#     for prop in self.properties:
+#         prop.find_bbox_attribute_locals(bbox_attr_locals[self.name])
 
-def find_bbox_attribute_locals_P4ExternTypeAttributeProp(self, bbox_attr_locals):
-    pass
+# def find_bbox_attribute_locals_P4ExternTypeMethod(self, bbox_attr_locals):
+#     pass
 
-def find_bbox_attribute_locals_P4ExternTypeAttributeLocals(self, bbox_attr_locals):
-    assert(self.name == "locals")
-    assert(type(self.value) is list)
-    for type_spec, name in self.value:
-        bbox_attr_locals[name] = type_spec
+# def find_bbox_attribute_locals_P4ExternTypeAttributeProp(self, bbox_attr_locals):
+#     pass
 
-def find_bbox_attribute_locals_P4RefExpression(self, bbox_attr_locals):
-    bbox_attr_locals.append(self.name)
+# def find_bbox_attribute_locals_P4ExternTypeAttributeLocals(self, bbox_attr_locals):
+#     assert(self.name == "locals")
+#     assert(type(self.value) is list)
+#     for type_spec, name in self.value:
+#         bbox_attr_locals[name] = type_spec
 
-def find_bbox_attribute_locals_P4TreeNode(self, bbox_attr_locals):
-    pass
+# def find_bbox_attribute_locals_P4RefExpression(self, bbox_attr_locals):
+#     bbox_attr_locals.append(self.name)
 
-def find_bbox_attribute_locals_P4Program(self, bbox_attr_locals):
-    for obj in self.objects:
-        obj.find_bbox_attribute_locals(bbox_attr_locals)
+# def find_bbox_attribute_locals_P4TreeNode(self, bbox_attr_locals):
+#     pass
 
-P4ExternType.find_bbox_attribute_locals = find_bbox_attribute_locals_P4ExternType
-P4ExternTypeAttribute.find_bbox_attribute_locals = find_bbox_attribute_locals_P4ExternTypeAttribute
-P4ExternTypeMethod.find_bbox_attribute_locals = find_bbox_attribute_locals_P4ExternTypeMethod
-P4ExternTypeAttributeProp.find_bbox_attribute_locals = find_bbox_attribute_locals_P4ExternTypeAttributeProp
-P4ExternTypeAttributeLocals.find_bbox_attribute_locals = find_bbox_attribute_locals_P4ExternTypeAttributeLocals
-P4RefExpression.find_bbox_attribute_locals = find_bbox_attribute_locals_P4RefExpression
-P4TreeNode.find_bbox_attribute_locals = find_bbox_attribute_locals_P4TreeNode
-P4Program.find_bbox_attribute_locals = find_bbox_attribute_locals_P4Program
+# def find_bbox_attribute_locals_P4Program(self, bbox_attr_locals):
+#     for obj in self.objects:
+#         obj.find_bbox_attribute_locals(bbox_attr_locals)
+
+# P4ExternType.find_bbox_attribute_locals = find_bbox_attribute_locals_P4ExternType
+# P4ExternTypeAttribute.find_bbox_attribute_locals = find_bbox_attribute_locals_P4ExternTypeAttribute
+# P4ExternTypeMethod.find_bbox_attribute_locals = find_bbox_attribute_locals_P4ExternTypeMethod
+# P4ExternTypeAttributeProp.find_bbox_attribute_locals = find_bbox_attribute_locals_P4ExternTypeAttributeProp
+# P4ExternTypeAttributeLocals.find_bbox_attribute_locals = find_bbox_attribute_locals_P4ExternTypeAttributeLocals
+# P4RefExpression.find_bbox_attribute_locals = find_bbox_attribute_locals_P4RefExpression
+# P4TreeNode.find_bbox_attribute_locals = find_bbox_attribute_locals_P4TreeNode
+# P4Program.find_bbox_attribute_locals = find_bbox_attribute_locals_P4Program
