@@ -58,7 +58,7 @@ class P4Lexer:
         'IN', 'OUT', 'INOUT', 'OPTIONAL',
         'EXTERN_TYPE',
         'EXTERN',
-        'ATTRIBUTE','LOCAL_VARIABLES',
+        'ATTRIBUTE', # 'LOCAL_VARIABLES',
         'STRING', 'BLOCK',
         'METHOD',
         'HEADER_TYPE',
@@ -261,6 +261,10 @@ class P4Lexer:
     def t_pragma_STR(self, t):
         r'.+'
         return t
+
+    def t_pragma_error(self, t):
+        self._error("illegal character '%s'" % t.value[0], t)
+        t.lexer.skip(1)
         
 
     ##
