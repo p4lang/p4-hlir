@@ -1754,6 +1754,130 @@ def check_P4ActionFunction(self, symbols, header_fields, objects, types = None):
                     % (self.name, self.filename, self.lineno)
         P4TreeNode.print_error(error_msg)
 
+def check_method_call(symbols, header_fields, objects,
+                      filename, lineno,
+                      is_action, name, args, params, required = None):
+    is_primitive = False
+    if is_action:
+        if name in P4TreeNode.std_primitives:
+            is_primitive = True
+
+    num_formals = len(params)
+    num_args = len(args)
+    if is_action:
+        cat = "action"
+    else:
+        cat = "extern method"
+    if required is None:
+        required = action.required_args
+    if num_formals == required and num_formals != num_args:
+        error_msg = "%s '%s' expected %d arguments but got %d"\
+                    " in file %s at line %d"\
+                    % (cat, name, num_formals, num_args,
+                       filename, lineno)
+        P4TreeNode.print_error(error_msg)
+    elif num_args < required:
+        error_msg = "%s '%s' expected at least %d arguments but only got %d"\
+                    " in file %s at line %d"\
+                    % (cat, name, num_formals, num_args,
+                       filename, lineno)
+        P4TreeNode.print_error(error_msg)
+    elif num_args > num_formals:
+        error_msg = "%s '%s' can only accept %d arguments but got %d"\
+                    " in file %s at line %d"\
+                    % (cat, name, num_formals, num_args,
+                       filename, lineno)
+        P4TreeNode.print_error(error_msg)
+
+    new_args = []
+    idx = 0
+    for arg, param in zip(args, params):
+        idx += 1
+        param_name, param_type_spec = param
+        p4_type = arg.check_ts(P4TreeNode.symbols, header_fields, objects)
+
+        if p4_type is None:
+            new_args.append(arg)
+            continue
+
+        # TODO: isn't this also true for extern methods?
+        if is_action:
+            if not is_primitive and not p4_type.is_integer_type():
+                error_msg = "In file %s, at line %d: non-primitive actions can"\
+                            " only accept integer data types"\
+                            % (arg.filename, arg.lineno)
+                P4TreeNode.print_error(error_msg)
+                new_args.append(arg)
+                continue
+
+        if (param_type_spec.p4_type.is_integer_type() != p4_type.is_integer_type()):
+            error_msg = "In file %s, at line %d: error when calling %s '%s',"\
+                        " parameter %d needs to be of type %s but"\
+                        " the value passed has type %s"\
+                        % (arg.filename, arg.lineno, cat, name, idx,
+                           param_type_spec.p4_type, p4_type)
+            P4TreeNode.print_error(error_msg)
+            new_args.append(arg)
+            continue
+
+        if not p4_type.is_integer_type():
+            if is_action:
+                assert(is_primitive)
+
+            if param_type_spec.p4_type.type_ == Types.header_instance and\
+               p4_type.is_any_header_type():
+                new_args.append(arg)
+                continue
+
+            if p4_type.type_ == param_type_spec.p4_type.type_:
+                new_args.append(arg)
+                continue
+
+            error_msg = "In file %s, at line %d: error when calling %s '%s',"\
+                        " parameter %d needs to be of type %s but"\
+                        " the value passed has type %s"\
+                        % (arg.filename, arg.lineno, cat, name, idx,
+                           param_type_spec.p4_type, p4_type)
+            P4TreeNode.print_error(error_msg)
+            new_args.append(arg)
+            continue
+
+        if p4_type.rvalue and param_type_spec.p4_type.direction != "in":
+            error_msg = "Error in file %s at line %d when calling %s '%s': cannot"\
+                        " pass rvalue expression to 'inout' parameter '%s'"\
+                        % (arg.filename, arg.lineno, cat, name, param_name)
+            P4TreeNode.print_error(error_msg)
+            new_args.append(arg)
+            continue
+
+        if (not p4_type.rvalue) and p4_type.direction == "in" and param_type_spec.p4_type.direction != "in":
+            error_msg = "Error in file %s at line %d when calling %s '%s':"\
+                        " cannot pass 'in' value to 'inout' parameter '%s'"\
+                        % (arg.filename, arg.lineno, cat, name, param_name)
+            P4TreeNode.print_error(error_msg)
+            new_args.append(arg)
+            continue
+
+        ok_cast = check_cast(arg.filename, arg.lineno,
+                             p4_type, param_type_spec.p4_type,
+                             expr=arg)
+        if ok_cast:
+            # adding implicit cast in function call
+            new_arg = P4CastExpression(arg.filename, arg.lineno,
+                                       param_type_spec.p4_type, arg)
+            new_args.append(new_arg)
+        else:
+            error_msg = "In file %s, at line %d: invalid integer cast when"\
+                        " calling %s '%s', parameter %d needs to be of"\
+                        " type %s but the value passed has type %s"\
+                        % (arg.filename, arg.lineno, cat, name, idx,
+                           param_type_spec.p4_type, p4_type)
+            P4TreeNode.print_error(error_msg)
+            new_args.append(arg)
+            continue
+
+    return new_args
+
 def check_P4ActionCall(self, symbols, header_fields, objects, types = None):
     action_name = self.action.name
     is_primitive = False
@@ -1775,112 +1899,13 @@ def check_P4ActionCall(self, symbols, header_fields, objects, types = None):
     else:
         action = objects.get_object(action_name, P4Action)
     assert(action)
-                                          
-    num_formals = len(action.formals)
-    num_args = len(self.arg_list)
+
     required = action.required_args
-    if num_formals == required and num_formals != num_args:
-        error_msg = "Action %s expected %d arguments but got %d"\
-                    " in file %s at line %d"\
-                    % (self.action.name, num_formals, num_args,
-                       self.filename, self.lineno)
-        P4TreeNode.print_error(error_msg)
-    elif num_args < required:
-        error_msg = "Action %s expected at least %d arguments but only got %d"\
-                    " in file %s at line %d"\
-                    % (self.action.name, num_formals, num_args,
-                       self.filename, self.lineno)
-        P4TreeNode.print_error(error_msg)
-    elif num_args > num_formals:
-        error_msg = "Action %s can only accept %d arguments but got %d"\
-                    " in file %s at line %d"\
-                    % (self.action.name, num_formals, num_args,
-                       self.filename, self.lineno)
-        P4TreeNode.print_error(error_msg)
 
-    new_args = []
-    idx = 0
-    for arg, param in zip(self.arg_list, action.formals):
-        idx += 1
-        param_name, param_type_spec = param
-        p4_type = arg.check_ts(P4TreeNode.symbols, header_fields, objects)
-
-        if p4_type is None:
-            new_args.append(arg)
-            continue
-
-        if not is_primitive and not p4_type.is_integer_type():
-            error_msg = "In file %s, at line %d: non-primitive actions can"\
-                        " only accept integer data types"\
-                        % (arg.filename, arg.lineno)
-            P4TreeNode.print_error(error_msg)
-            new_args.append(arg)
-            continue
-
-        if (param_type_spec.p4_type.is_integer_type() != p4_type.is_integer_type()):
-            error_msg = "In file %s, at line %d: error when calling primitive"\
-                        " action %s, parameter %d needs to be of type %s but"\
-                        " the value passed has type %s"\
-                        % (arg.filename, arg.lineno, action_name, idx,
-                           param_type_spec.p4_type, p4_type)
-            P4TreeNode.print_error(error_msg)
-            new_args.append(arg)
-            continue
-
-        if not p4_type.is_integer_type():
-            assert(is_primitive)
-
-            if param_type_spec.p4_type.type_ == Types.header_instance and\
-               p4_type.is_any_header_type():
-                new_args.append(arg)
-                continue
-
-            if p4_type.type_ == param_type_spec.p4_type.type_:
-                new_args.append(arg)
-                continue
-
-            error_msg = "In file %s, at line %d: error when calling primitive"\
-                        " action %s, parameter %d needs to be of type %s but"\
-                        " the value passed has type %s"\
-                        % (arg.filename, arg.lineno, action_name, idx,
-                           param_type_spec.p4_type, p4_type)
-            P4TreeNode.print_error(error_msg)
-            new_args.append(arg)
-            continue
-
-        if p4_type.rvalue and param_type_spec.p4_type.direction != "in":
-            error_msg = "Error in file %s at line %d when calling '%s': cannot"\
-                        " pass rvalue expression to 'inout' parameter '%s'"\
-                        % (arg.filename, arg.lineno, action_name, param_name)
-            P4TreeNode.print_error(error_msg)
-            new_args.append(arg)
-            continue
-
-        if (not p4_type.rvalue) and p4_type.direction == "in" and param_type_spec.p4_type.direction != "in":
-            error_msg = "Error in file %s at line %d when calling '%s':"\
-                        " cannot pass 'in' value to 'inout' parameter '%s'"\
-                        % (arg.filename, arg.lineno, action_name, param_name)
-            P4TreeNode.print_error(error_msg)
-            new_args.append(arg)
-            continue
-
-        ok_cast = check_cast(arg.filename, arg.lineno,
-                             p4_type, param_type_spec.p4_type,
-                             expr=arg)
-        if ok_cast:
-            # adding implicit cast in function call
-            new_arg = P4CastExpression(arg.filename, arg.lineno,
-                                       param_type_spec.p4_type, arg)
-            new_args.append(new_arg)
-        else:
-            error_msg = "In file %s, at line %d: invalid integer cast when"\
-                        " calling action %s, parameter %d needs to be of"\
-                        " type %s but the value passed has type %s"\
-                        % (arg.filename, arg.lineno, action_name, idx,
-                           param_type_spec.p4_type, p4_type)
-            P4TreeNode.print_error(error_msg)
-            new_args.append(arg)
-            continue
+    new_args = check_method_call(symbols, header_fields, objects,
+                                 self.filename, self.lineno, True,
+                                 action_name, self.arg_list, action.formals,
+                                 required = required)
 
     self.arg_list = new_args
 
@@ -1959,24 +1984,12 @@ def check_P4ExternMethodCall(self, symbols, header_fields, objects, types = None
         if "optional" in param[1].qualifiers:
             required -= 1
 
-    if num_params == required and num_params != num_args:
-        error_msg = "Extern method '%s' expected %d arguments but got %d"\
-                    " in file %s at line %d"\
-                    % (self.method, num_params, num_args,
-                       self.filename, self.lineno)
-        P4TreeNode.print_error(error_msg)
-    elif num_args < required:
-        error_msg = "Extern method '%s' expected at least %d arguments but only got %d"\
-                    " in file %s at line %d"\
-                    % (self.method, num_params, num_args,
-                       self.filename, self.lineno)
-        P4TreeNode.print_error(error_msg)
-    elif num_args > num_params:
-        error_msg = "Extern method '%s' can only accept %d arguments but got %d"\
-                    " in file %s at line %d"\
-                    % (self.method, num_params, num_args,
-                       self.filename, self.lineno)
-        P4TreeNode.print_error(error_msg)
+    new_args = check_method_call(symbols, header_fields, objects,
+                                 self.filename, self.lineno, False,
+                                 self.method, self.arg_list, method.param_list,
+                                 required = required)
+
+    self.arg_list = new_args
 
 def check_P4Table(self, symbols, header_fields, objects, types = None):
     if self.size is None and self.min_size is not None and self.max_size is not None:
