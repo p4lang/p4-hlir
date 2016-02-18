@@ -2102,7 +2102,7 @@ def check_P4ControlFunctionApply(self, symbols, header_fields, objects, types = 
         P4TreeNode.print_error(error_msg)
 
 def check_P4ControlFunctionApplyAndSelect(self, symbols, header_fields, objects, types = None):
-    p4_type = self.table.check(symbols, header_fields, objects)
+    p4_type = self.table.check_ts(symbols, header_fields, objects)
     if p4_type is not None and p4_type.type_ != Types.table:
         error_msg = "In file %s at line %d:"\
                     " invalid reference to '%s' which is not a table"\
@@ -2130,7 +2130,7 @@ def check_P4ControlFunctionApplyAndSelect(self, symbols, header_fields, objects,
 
 def check_P4ControlFunctionApplyActionCase(self, symbols, header_fields, objects, types = None):
     for action in self.action_list:
-        p4_type = action.check(symbols, header_fields, objects)
+        p4_type = action.check_ts(symbols, header_fields, objects)
         if p4_type is not None and p4_type.type_ != Types.action_function:
             error_msg = "In file %s at line %d:"\
                         " invalid reference to '%s' which is not an action"\
