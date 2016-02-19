@@ -1,6 +1,20 @@
 p4-hlir
 ==========
 
+Dependencies:  
+The following are required to run `p4-validate` and `p4-graphs`:
+- the Python `yaml` package
+- the Python `ply` package
+- the `dot` tool
+
+`ply` will be installed automatically by `setup.py` when installing `p4-hlir`.
+
+On Ubuntu, the following packages can be installed with `apt-get` to satisfy the
+remaining dependencies:
+- `python-yaml`
+- `graphviz`
+
+
 To install:  
 sudo python setup.py install
 
