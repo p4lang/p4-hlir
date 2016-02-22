@@ -51,6 +51,15 @@ class p4_node(p4_object):
         self.dependencies_to = {} # tables to which this table have a dependency
         self.dependencies_for = {} # tables for which this table is a dependency        
     
+        # the "default default" next node, according to the original P4 control
+        # flow; if a table has not runtime-configured (or compile-time
+        # configured) default action and there is a table miss, this node will
+        # be executed, as per the P4 spec
+        # note that this is also defined for conditions in case an optimization
+        # removes a useless condition and base_default_next needs to be updated
+        # for upstream nodes
+        self.base_default_next = None
+
         hlir.p4_nodes[name] = self
 
     def depends_on_step(self, node, visited):
@@ -190,7 +199,7 @@ class p4_action_selector (p4_object):
 def p4_control_flow_to_table_graph(hlir, call_sequence):
     visited = set()
     return _p4_control_flow_to_table_graph(hlir, call_sequence,
-                                              None, None, visited)
+                                           None, None, visited)
 
 def _p4_control_flow_to_table_graph(hlir,
                                     call_sequence, parent_fn,
@@ -337,6 +346,10 @@ def _p4_control_flow_to_table_graph(hlir,
                 conditional_barrier,
                 visited
             )
+
+        if isinstance(call_entry, p4_node):
+            for p in parents:
+                p.base_default_next = call_entry
 
         for parent in parents:
             for label, edge in parent.next_.items():
@@ -494,7 +507,12 @@ def _remove_unused_conditions(hlir):
                 if not isinstance(nt, p4_conditional_node): continue
                 if nt.next_[True] == nt.next_[False]:
                     assert(nt not in conditions_used)
+
                     p4_node.next_[a] = nt.next_[True]
+
+                    if (p4_node.base_default_next == nt):
+                        p4_node.base_default_next = nt.base_default_next
+
                     removed_conditions.add(nt)
 
         assert(not (conditions_used & removed_conditions))
