@@ -661,7 +661,7 @@ def check_stateful_refs_P4RefExpression(self, symbols, objects, table = None):
     
     stateful_table = stateful.direct_or_static[1].name
     if is_static and table != stateful_table:
-        error_msg = "Error  in file %s at line %d:"\
+        error_msg = "Error in file %s at line %d:"\
                     " static counter %s assigned to table %s" \
                     " cannot be referenced in an action called by table %s" \
                     % (self.filename, self.lineno, self.name, stateful_table, table)
@@ -670,6 +670,7 @@ def check_stateful_refs_P4RefExpression(self, symbols, objects, table = None):
 
 def import_symbols_P4Program(self, header_fields):
     for obj in self.objects:
+        if not isinstance(obj, P4NamedObject): continue
         obj.import_symbols(header_fields)
 P4Program.import_symbols = import_symbols_P4Program
 
@@ -1181,7 +1182,7 @@ def check_ts_P4TernaryExpression(self, symbols, header_fields, objects):
     # wrote it for binary expressions, but also work here!
     if not check_bit_same_type(self):
         return None
-    p4_type = copy(right_type)
+    p4_type = copy(self.right.p4_type)
     p4_type.rvalue = True
     self.p4_type = p4_type
     return p4_type
@@ -1221,7 +1222,7 @@ def check_ts_P4StructRefExpression(self, symbols, header_fields, objects):
     header_type_name = struct_type.get_header()
     assert(header_type_name in header_fields)
     if self.field not in header_fields[header_type_name]:
-        error_msg = "Inavlid reference in file %s at line %d:"\
+        error_msg = "Invalid reference in file %s at line %d:"\
                     " header of type '%s' has no field named '%s'"\
                     % (self.filename, self.lineno, header_type_name, self.field)
         P4TreeNode.print_error(error_msg)
@@ -1625,7 +1626,7 @@ def check_P4Counter(self, symbols, header_fields, objects, types = None):
         p4_type = table.check_ts(symbols, header_fields, objects)
         if p4_type is None:
             return
-        if p4_type.type_ == Types.table:
+        if p4_type.type_ != Types.table:
             error_msg = "In file %s at line %d when defining counter '%s',"\
                         " invalid 'direct-or-static' attribute should refer"\
                         " to a table"\
@@ -1638,7 +1639,7 @@ def check_P4Meter(self, symbols, header_fields, objects, types = None):
         p4_type = table.check_ts(symbols, header_fields, objects)
         if p4_type is None:
             return
-        if p4_type.type_ == Types.table:
+        if p4_type.type_ != Types.table:
             error_msg = "In file %s at line %d when defining meter '%s',"\
                         " invalid 'direct-or-static' attribute should refer"\
                         " to a table"\
@@ -1688,9 +1689,10 @@ def check_P4Register(self, symbols, header_fields, objects, types = None):
 
     if self.direct_or_static is not None:
         _, table = self.direct_or_static
+        p4_type = table.check_ts(symbols, header_fields, objects)
         if p4_type is None:
             return
-        if p4_type.type_ == Types.table:
+        if p4_type.type_ != Types.table:
             error_msg = "In file %s at line %d when defining register '%s',"\
                         " invalid 'direct-or-static' attribute should refer"\
                         " to a table"\
