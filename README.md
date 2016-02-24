@@ -6,7 +6,21 @@ your P4 v1.1 programs and compile them for the bmv2 software switch. You can
 install it jointly with the "master" version of p4-hlir, as the binary and
 package names are different.__
 
-To install:
+Dependencies:  
+The following are required to run `p4-validate` and `p4-graphs`:
+- the Python `yaml` package
+- the Python `ply` package
+- the `dot` tool
+
+`ply` will be installed automatically by `setup.py` when installing `p4-hlir`.
+
+On Ubuntu, the following packages can be installed with `apt-get` to satisfy the
+remaining dependencies:
+- `python-yaml`
+- `graphviz`
+
+
+To install:  
 sudo python setup.py install
 
 To run validate tool:  
