@@ -147,6 +147,9 @@ class p4_action (p4_object):
                     arg.left = resolve_expression(arg.left)
                     arg.right = resolve_expression(arg.right)
                     return arg
+                elif isinstance(arg, p4_register_ref):
+                    arg.idx = resolve_expression(arg.idx)
+                    return arg
                 elif arg in self.signature:
                     return p4_signature_ref(self.signature.index(arg))
                 else:

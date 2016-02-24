@@ -59,9 +59,13 @@ class p4_expression(object):
         self.right = right
 
     def __str__ (self):
-        return ("("+(str(self.left)+" " if self.left else "")+
-                self.op+" "+
-                str(self.right)+")")
+        if type(self.op) is str and self.left is not None:
+            return "(({}) {} ({}))".format(self.left, self.op, self.right)
+        elif type(self.op) is str:
+            return "({} ({}))".format(self.op, self.right)
+        else:  # ternary operator
+            assert(type(self.op) is p4_expression)
+            return "(({}) ? ({}) : ({}))".format(self.op, self.left, self.right)
 
     def resolve_one_name(self, hlir, local_vars, name):
         if name in local_vars:
