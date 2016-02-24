@@ -77,7 +77,8 @@ class HLIR():
         self.p4_ingress_ptr = {}
         self.p4_egress_ptr = None
 
-        self.primitives = json.loads(pkg_resources.resource_string('p4_hlir.frontend', 'primitives.json'))
+        self.primitives = json.loads(pkg_resources.resource_string(
+            'p4_hlir_v1_1.frontend', 'primitives.json'))
 
 
     def version(self):

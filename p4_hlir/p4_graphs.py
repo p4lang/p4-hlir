@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-# Copyright 2013-present Barefoot Networks, Inc. 
-# 
+# Copyright 2013-present Barefoot Networks, Inc.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
@@ -17,8 +17,8 @@
 import argparse
 import os
 import sys
-from p4_hlir.main import HLIR
-import p4_hlir.graphs.dot as dot
+from main import HLIR
+import graphs.dot as dot
 import json
 
 def get_parser():
@@ -105,7 +105,7 @@ def main():
     if "deps" in graphs_to_generate:
         dot.export_table_dependency_graph(h, basename, gen_dir,
                                           show_conds = args.dep_stages_with_conds)
-    
+
     pass
 
 if __name__ == "__main__":

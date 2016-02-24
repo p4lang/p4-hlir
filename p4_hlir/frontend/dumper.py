@@ -18,8 +18,8 @@ import json
 import os
 
 
-from p4_hlir.hlir.p4_core import p4_compiler_msg
-from p4_hlir.hlir.p4_headers import (
+from ..hlir.p4_core import p4_compiler_msg
+from ..hlir.p4_headers import (
     p4_header,
     p4_header_instance,
     p4_header_stack,
@@ -28,27 +28,27 @@ from p4_hlir.hlir.p4_headers import (
     p4_field,
     P4_NEXT, P4_LAST, P4_AUTO_WIDTH, P4_SIGNED, P4_SATURATING
 )
-from p4_hlir.hlir.p4_stateful import *
-from p4_hlir.hlir.p4_parser import (
+from ..hlir.p4_stateful import *
+from ..hlir.p4_parser import (
     p4_parse_state, p4_parse_value_set, p4_parser_exception,
     P4_PARSER_DROP
 )
-from p4_hlir.hlir.p4_imperatives import (
+from ..hlir.p4_imperatives import (
     p4_action, p4_control_flow, p4_table_entry_data,
     p4_register_ref,
     P4_READ, P4_WRITE
 )
-from p4_hlir.hlir.p4_tables import (
+from ..hlir.p4_tables import (
     p4_table, p4_match_type,
     p4_action_profile, p4_action_selector
 )
-from p4_hlir.hlir.p4_extern import (
+from ..hlir.p4_extern import (
     p4_extern_type,
     p4_extern_instance
 )
 
-from p4_hlir.hlir.p4_expressions import p4_expression
-from p4_hlir.hlir.p4_sized_integer import p4_sized_integer
+from ..hlir.p4_expressions import p4_expression
+from ..hlir.p4_sized_integer import p4_sized_integer
 
 def _decode_list(data):
     rv = []

@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-# Copyright 2013-present Barefoot Networks, Inc. 
-# 
+# Copyright 2013-present Barefoot Networks, Inc.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from p4_hlir.main import HLIR
+from main import HLIR
 import argparse
 import yaml
 import logging
@@ -33,19 +33,23 @@ parser.add_argument('--primitives', action='append', default = [],
                     help="A JSON file which contains primitive declarations \
                     (to be used in addition to the standard ones)")
 
-args = parser.parse_args()
+def main():
+    args = parser.parse_args()
 
-# TODO: different levels
-if args.verbose > 0:
-    logging.basicConfig(level=logging.DEBUG)
+    # TODO: different levels
+    if args.verbose > 0:
+        logging.basicConfig(level=logging.DEBUG)
 
-h = HLIR(*args.sources)
-for primitive_f in args.primitives:
-    with open(primitive_f, 'r') as fp:
-        h.add_primitives(json.load(fp))
-h.build()
+    h = HLIR(*args.sources)
+    for primitive_f in args.primitives:
+        with open(primitive_f, 'r') as fp:
+            h.add_primitives(json.load(fp))
+    h.build()
 
-if args.dump_hlir:
-    with open(args.hlir_name, 'w') as dump:
-        yaml.dump([h.p4_parse_states['start'],
-                   h.p4_ingress_ptr, h.p4_egress_ptr], dump)
+    if args.dump_hlir:
+        with open(args.hlir_name, 'w') as dump:
+            yaml.dump([h.p4_parse_states['start'],
+                       h.p4_ingress_ptr, h.p4_egress_ptr], dump)
+
+if __name__ == "__main__":
+    main()

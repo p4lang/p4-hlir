@@ -19,18 +19,24 @@ from setuptools import setup
 
 
 setup(
-    name = 'p4_hlir',
+    name = 'p4_hlir_v1_1',
     version = '0.9.29',
     install_requires=['ply'],
-    packages=['p4_hlir','p4_hlir/hlir', 'p4_hlir/frontend',
-              'p4_hlir/util', 'p4_hlir/graphs'],
+    packages=['p4_hlir_v1_1','p4_hlir_v1_1/hlir', 'p4_hlir_v1_1/frontend',
+              'p4_hlir_v1_1/util', 'p4_hlir_v1_1/graphs'],
     package_data = {
-        'p4_hlir/frontend' : ['*.json'],
+        'p4_hlir_v1_1/frontend' : ['*.json'],
     },
-    scripts = ['bin/p4-validate', 'bin/p4-shell', 'bin/p4-graphs'],
+    entry_points = {
+        'console_scripts': [
+            'p4-1.1-validate=p4_hlir_v1_1.p4_validate:main',
+            'p4-1.1-shell=p4_hlir_v1_1.p4_shell:main',
+            'p4-1.1-graphs=p4_hlir_v1_1.p4_graphs:main',
+        ],
+    },
     author = 'Antonin BAS',
     author_email = 'antonin@barefootnetworks.com',
-    description = 'p4_hlir: frontend for the P4 compiler',
+    description = 'p4_hlir_v1_1: frontend for the P4 v1.1 compiler',
     license = '',
     url = 'http://www.barefootnetworks.com/',
 )
