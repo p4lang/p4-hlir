@@ -1,18 +1,23 @@
-p4-hlir
+p4-hlir for P4 v1.1
 ==========
 
-To install:  
+__This is the P4 v1.1 experimental branch. You can use this branch to validate
+your P4 v1.1 programs and compile them for the bmv2 software switch. You can
+install it jointly with the "master" version of p4-hlir, as the binary and
+package names are different.__
+
+To install:
 sudo python setup.py install
 
 To run validate tool:  
-p4-validate \<path_to_p4_program\>
+p4-1.1-validate \<path_to_p4_program\>
 
 To open a Python shell with an HLIR instance accessible:  
-p4-shell \<path_to_p4_program\>
+p4-1.1-shell \<path_to_p4_program\>
 
 To build the HLIR and access its objects:  
-from p4_hlir.main import HLIR  
-h = HLIR(\<path_to_p4_program\>)  
+from p4_hlir_v1_1.main import HLIR
+h = HLIR(\<path_to_p4_program\>)
 h.build()
 
 You can then access the different P4 top level objects using these Python
@@ -44,13 +49,13 @@ h.p4_egress_ptr
 
 
 To access the P4 types you can use the following import:  
-import p4_hlir.hlir.p4 as p4
+import p4_hlir_v1_1.hlir.p4 as p4
 
 
 # Getting the graphs
 
 To get the table graph or parse graph for a P4 program, use:  
-p4-graphs \<path_to_p4_program\>
+p4-1.1-graphs \<path_to_p4_program\>
 
 # Compiling to EBPF
 
