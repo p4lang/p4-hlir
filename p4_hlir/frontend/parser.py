@@ -20,7 +20,6 @@ class P4Parser:
     def __init__(self, start='p4_objects', silent=False):
         self.lexer = P4Lexer()
         self.lexer.build()
-
         self.tokens = self.lexer.tokens
 
         if silent:
@@ -45,6 +44,7 @@ class P4Parser:
             self.lexer.filename = filename
         p4_objects = self.parser.parse(input = data,
                                        lexer = self.lexer)
+        self.errors_cnt += self.lexer.errors_cnt
         return p4_objects, self.errors_cnt
 
     ##

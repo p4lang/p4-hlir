@@ -23,6 +23,7 @@ class P4Lexer:
         self.last_token = None
         # Allow either "# line" or "# <num>" to support GCC's cpp output
         self.line_pattern = re.compile('([ \t]*line\W)|([ \t]*\d+)')
+        self.errors_cnt = 0
 
     def reset_lineno(self):
         """ Resets the internal line number counter of the lexer.
@@ -49,6 +50,7 @@ class P4Lexer:
 
     def _error(self, s, token):
         print s, "in file", self.filename, "at line", self.get_lineno()
+        self.errors_cnt += 1
 
     keywords = (
         'INT', 'BIT', 'VARBIT', # 'VOID',
