@@ -20,7 +20,6 @@ class P4Parser:
     def __init__(self):
         self.lexer = P4Lexer()
         self.lexer.build()
-
         self.tokens = self.lexer.tokens
 
         self.parser = yacc.yacc(module = self,
@@ -37,6 +36,7 @@ class P4Parser:
         self.lexer.reset_lineno()
         p4_objects = self.parser.parse(input = data,
                                        lexer = self.lexer)
+        self.errors_cnt += self.lexer.errors_cnt
         return p4_objects, self.errors_cnt
 
     ##

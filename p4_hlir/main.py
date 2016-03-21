@@ -113,7 +113,6 @@ class HLIR():
             return False
 
         # Parse preprocessed text
-
         all_p4_objects = []
         for preprocessed_source in preprocessed_sources:
             p4_objects, errors_cnt = P4Parser().parse(preprocessed_source)
