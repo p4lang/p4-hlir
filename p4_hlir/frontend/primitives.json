@@ -56,27 +56,6 @@
 	    }
 	}
     },
-    "modify_field_rng_uniform" :
-    {
-	"num_args" : 3,
-	"args" : ["dst", "begin", "end"],
-	"properties" : {
-	    "dst" : {
-		"type" : "int",
-		"access" : "write"
-	    },
-	    "begin" : {
-		"type" : "int",
-		"access" : "read",
-		"data_width" : "dst"
-	    },
-	    "end" : {
-		"type" : "int",
-		"access" : "read",
-		"data_width" : "dst"
-	    }
-	}
-    },
     "generate_digest" :
     {
         "num_args" : 2,
