@@ -151,12 +151,13 @@ class p4_field_list (p4_object):
         self.fields = new_fields
 
     def flatten (self, hlir):
+        if self._flat:
+            return
         new_fields = []
         for field in self.fields:
             if type(field) is p4_field_list:
-                if not field._flat:
-                    field.flatten(hlir)
-                    new_fields += field.fields
+                field.flatten(hlir)
+                new_fields += field.fields
             else:
                 new_fields.append(field)
 
