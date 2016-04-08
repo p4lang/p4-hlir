@@ -48,7 +48,7 @@ def main():
         pass
 
     print("HLIR successfully constructed, access with variable 'h'")
-    code.interact(local=globals())
+    code.interact(local=locals())
 
 if __name__ == "__main__":
     main()
