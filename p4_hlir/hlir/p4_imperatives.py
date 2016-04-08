@@ -60,7 +60,9 @@ class p4_register_ref(object):
         # If this fails, an exception will be raised, which is exactly what we
         # want: the exception will be catched when trying to resolve action
         # primitive parameters
-        m = re.match(r"(\w+)\[(.*)\]", name)
+        assert(type(name) is str)
+        # $ is for end-of-string
+        m = re.match(r"(\w+)\[(.*)\]$", name)
         register_name, register_idx = m.group(1), m.group(2)
         register_idx = int(register_idx)
         reg_ref = p4_register_ref(hlir, register_name, register_idx)
