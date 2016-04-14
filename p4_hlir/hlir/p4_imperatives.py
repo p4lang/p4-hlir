@@ -70,6 +70,10 @@ class p4_register_ref(object):
 
     def build(self, hlir):
         self.register = p4_stateful.p4_register.get_from_hlir(hlir, self.register_name)
+        # I thought this was done earlier but it appears that string idices are
+        # never resolved before this point
+        if type(self.idx) is str:
+            self.idx = p4_headers.p4_field_reference(hlir, self.idx)
 
     def __str__(self):
         return self.register_name + "["+str(self.idx)+"]"
