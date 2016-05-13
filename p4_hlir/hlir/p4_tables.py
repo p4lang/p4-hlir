@@ -524,6 +524,12 @@ def _update_conditional_barriers(hlir):
     #     if cb is not None:
     #         node.conditional_barrier = cb
 
+def _update_base_default_next(hlir):
+    for _, node in hlir.p4_nodes.items():
+        if not node._mark_used: continue
+        while node.base_default_next and not node.base_default_next._mark_used:
+            node.base_default_next = node.base_default_next.base_default_next
+
 def _remove_unused_conditions(hlir):
     change = True
     while change:
@@ -540,15 +546,13 @@ def _remove_unused_conditions(hlir):
             if not p4_node._mark_used: continue
             for a, nt in p4_node.next_.items():
                 if not nt: continue
+                # if it is a next node of a used node, it has to be used...
                 assert(nt._mark_used)
                 if not isinstance(nt, p4_conditional_node): continue
                 if nt.next_[True] == nt.next_[False]:
                     assert(nt not in conditions_used)
 
                     p4_node.next_[a] = nt.next_[True]
-
-                    if (p4_node.base_default_next == nt):
-                        p4_node.base_default_next = nt.base_default_next
 
                     removed_conditions.add(nt)
 
@@ -572,6 +576,8 @@ def _purge_unused_nodes(hlir):
     _update_conditional_barriers(hlir)
 
     _remove_unused_conditions(hlir)
+
+    _update_base_default_next(hlir)
 
     for _, node in hlir.p4_nodes.items():
         if not node._mark_used:
