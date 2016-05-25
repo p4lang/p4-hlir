@@ -98,10 +98,10 @@ class p4_expression(object):
 
         if self.op=="valid":
             self.right = self.resolve_one_name(hlir, local_vars, self.right)
-        elif isinstance(self.op, p4_expression):
-            # hack for ternary ? :
-            self.op.resolve_names(hlir, local_vars)
         else:
+            if isinstance(self.op, p4_expression):
+                # hack for ternary ? :
+                self.op.resolve_names(hlir, local_vars)
 
             if type(self.left) is p4_expression:
                 self.left.resolve_names(hlir, local_vars)
