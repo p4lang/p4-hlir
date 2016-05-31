@@ -38,13 +38,31 @@ def get_header(header_or_field):
     except:
         return header_or_field
 
+def add_non_virtual_fields(field, field_set):
+    h = field.instance
+    hlir = h._hlir
+    assert(h.virtual)
+    for i in xrange(h.max_index + 1):
+        name = h.base_name + "[" + str(i) + "]"
+        f = p4.p4_field.get_from_hlir(hlir, name + "." + field.name)
+        assert(isinstance(f, p4.p4_field))
+        field_set.add(f)
+
 # places all fields of a header instance in field_set
 def get_all_subfields(field, field_set):
     if isinstance(field, p4.p4_field):
-        field_set.add(field)
+        if field.instance.virtual:
+            add_non_virtual_fields(field, field_set)
+        else:
+            field_set.add(field)
     elif isinstance(field, p4.p4_header_instance):
         for subfield in field.fields:
             get_all_subfields(subfield, field_set)
+    elif isinstance(field, p4.p4_header_stack):
+        for _, h in field.instances.items():
+            assert(isinstance(h, p4.p4_header_instance))
+            if not h.virtual:
+                get_all_subfields(h, field_set)
     elif isinstance(field, p4.p4_field_list):
         for subfield in field.fields:
             get_all_subfields(subfield, field_set)
@@ -98,7 +116,8 @@ def retrieve_from_one_action(action):
         assert(len(primitive.flat_call_sequence) == 0)
         for index, arg in enumerate(args):
             if isinstance(arg, p4.p4_field) or\
-               isinstance(arg, p4.p4_header_instance):
+               isinstance(arg, p4.p4_header_instance) or\
+               isinstance(arg, p4.p4_header_stack):
                 sig_arg_name = primitive.signature[index]
                 flags = primitive.signature_flags[sig_arg_name]
                 access = p4.P4_WRITE if "access" not in flags \

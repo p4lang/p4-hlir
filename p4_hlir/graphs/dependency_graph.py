@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import p4_hlir.hlir
+import p4_hlir_v1_1.hlir
 import sys
 from collections import defaultdict
-from p4_hlir.hlir.dependencies import *
+from p4_hlir_v1_1.hlir.dependencies import *
 
 class Dependency:
     CONTROL_FLOW = 0
@@ -207,7 +207,7 @@ class Graph:
 def _graph_get_or_add_node(graph, p4_node):
     node = graph.get_node(p4_node.name)
     if not node:
-        if isinstance(p4_node, p4_hlir.hlir.p4_conditional_node):
+        if isinstance(p4_node, p4_hlir_v1_1.hlir.p4_conditional_node):
             type_ = Node.CONDITION
         else:
             type_ = Node.TABLE

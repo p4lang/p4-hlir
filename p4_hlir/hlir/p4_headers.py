@@ -193,6 +193,8 @@ class p4_header_instance (p4_object):
 
         self.fields = []
 
+        self._hlir = hlir
+
         hlir.p4_header_instances[self.name] = self
 
     @staticmethod
