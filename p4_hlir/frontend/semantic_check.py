@@ -1538,7 +1538,8 @@ def check_P4FieldList(self, symbols, header_fields, objects, types = None):
         if p4_type is None:
             return
         if not p4_type.is_integer_type() and\
-           p4_type.type_ not in {Types.header_instance, Types.field_list, Types.string_}:
+           not p4_type.is_any_header_type() and\
+           p4_type.type_ not in {Types.field_list, Types.string_}:
             error_msg = "In file %s at line %d:"\
                         " invalid entry of type '%s' in field list"\
                         % (self.filename, self.lineno, p4_type)
