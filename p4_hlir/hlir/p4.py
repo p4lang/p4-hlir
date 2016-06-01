@@ -103,6 +103,7 @@ def p4_validate(hlir):
     p4_types = [
         hlir.p4_headers,
         hlir.p4_header_instances,
+        hlir.p4_header_stacks,
         hlir.p4_extern_types,
         hlir.p4_extern_instances,
         hlir.p4_field_lists,
