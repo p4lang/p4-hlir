@@ -862,7 +862,9 @@ def check_ts_P4TypedRefExpression(self, symbols, header_fields, objects):
     return actual_type
 P4TypedRefExpression.check_ts = check_ts_P4TypedRefExpression
 
-def eval_binary_op(op, left, right):
+# Passing 'expr' instead of 'op', to have access to file position
+def eval_binary_op(expr, left, right):
+    op = expr.op
     if op == "+":
         return left + right
     elif op == "-":
@@ -895,10 +897,23 @@ def eval_binary_op(op, left, right):
         return left << right
     elif op == ">>":
         return left >> right
+    elif op == "%" or op == '/':
+        if left < 0 or right <= 0:
+            error_msg = "Error in file %s at line %d:"\
+                        " Invalid operands for '%d' operation"\
+                        % (expr.filename, expr.lineno, op)
+            P4TreeNode.print_error(error_msg)
+            # if error return an 'arbitrary' value
+            return 1
+        if op == "%":
+            return left % right
+        else:
+            return left / right
     else:
         assert(0)
 
-def eval_unary_op(op, right):
+def eval_unary_op(expr, right):
+    op = expr.op
     if op == "+":
         return right
     elif op == "-":
@@ -914,8 +929,9 @@ def check_infint_binary_op(expr):
     left, right = expr.left, expr.right
     left_type, right_type = left.p4_type, right.p4_type
     assert(left_type.type_ == Types.infint_ and right_type.type_ == Types.infint_)
-    if expr.op in {"+", "-", "*"}:
-        expr.i = eval_binary_op(expr.op, left.i, right.i)
+    # eval_binary_op will check the sign of operands for "/" and "%"
+    if expr.op in {"+", "-", "*", "/", "%"}:
+        expr.i = eval_binary_op(expr, left.i, right.i)
         return right_type
     if expr.op in {"&", "|", "^"}:
         error_msg = "Error in file %s at line %d:"\
@@ -930,10 +946,10 @@ def check_infint_binary_op(expr):
                         % (expr.filename, expr.lineno)
             P4TreeNode.print_error(error_msg)
             return None
-        expr.i = eval_binary_op(expr.op, left.i, right.i)
+        expr.i = eval_binary_op(expr, left.i, right.i)
         return right_type
     if expr.op in {"==", "<", ">", "<=", ">=", "!="}:
-        expr.i = eval_binary_op(expr.op, left.i, right.i)
+        expr.i = eval_binary_op(expr, left.i, right.i)
         return right_type
     if expr.op in {">>", "<<"}:
         if right.i <= 0:
@@ -942,7 +958,7 @@ def check_infint_binary_op(expr):
                         % (expr.filename, expr.lineno)
             P4TreeNode.print_error(error_msg)
             return None
-        expr.i = eval_binary_op(expr.op, left.i, right.i)
+        expr.i = eval_binary_op(expr, left.i, right.i)
         return right_type
     assert(0)
 
@@ -951,7 +967,7 @@ def check_infint_unary_op(expr):
     right_type = right.p4_type
     assert(right_type.type_ == Types.infint_)
     if expr.op in {"+", "-"}:
-        expr.i = eval_unary_op(expr.op, right.i)
+        expr.i = eval_unary_op(expr, right.i)
         return right_type
     if expr.op in {"~"}:
         error_msg = "Error in file %s at line %d:"\
@@ -966,7 +982,7 @@ def check_infint_unary_op(expr):
                         % (expr.filename, expr.lineno)
             P4TreeNode.print_error(error_msg)
             return None
-        expr.i = eval_unary_op(expr.op, right.i)
+        expr.i = eval_unary_op(expr, right.i)
         return right_type
     assert(0)
 
@@ -1003,7 +1019,10 @@ def check_bit_binary_op(expr):
     left, right = expr.left, expr.right
     left_type, right_type = left.p4_type, right.p4_type
     assert(left_type.type_ == Types.bit_ and right_type.type_ == Types.bit_)
-    if expr.op in {"+", "-", "*"}:
+    # for some reason the P4 spec restricts "/" and "%" to infint, but does not
+    # comment on why. While it is likely many targets will impose restrictions
+    # on the use of such operations, I don't believe the language should.
+    if expr.op in {"+", "-", "*", "/", "%"}:
         if not check_bit_same_type(expr):
             return None
         new_type = copy(right_type)

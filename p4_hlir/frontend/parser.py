@@ -1882,6 +1882,8 @@ class P4Parser:
                        | expression TIMES expression
                        | expression LSHIFT expression
                        | expression RSHIFT expression
+                       | expression MOD expression
+                       | expression DIVIDE expression
                        | expression AND expression
                        | expression OR expression
                        | expression XOR expression

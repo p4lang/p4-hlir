@@ -20,7 +20,7 @@ from setuptools import setup
 
 setup(
     name = 'p4_hlir_v1_1',
-    version = '1.1.3',
+    version = '1.1.4',
     install_requires=['ply'],
     packages=['p4_hlir_v1_1','p4_hlir_v1_1/hlir', 'p4_hlir_v1_1/frontend',
               'p4_hlir_v1_1/util', 'p4_hlir_v1_1/graphs'],
