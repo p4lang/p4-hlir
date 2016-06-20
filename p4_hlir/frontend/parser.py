@@ -328,6 +328,8 @@ class P4Parser:
                       | arith_exp TIMES arith_exp
                       | arith_exp LSHIFT arith_exp
                       | arith_exp RSHIFT arith_exp
+                      | arith_exp MOD arith_exp
+                      | arith_exp DIVIDE arith_exp
                       | arith_exp AND arith_exp
                       | arith_exp OR arith_exp
                       | arith_exp XOR arith_exp
@@ -1985,6 +1987,8 @@ class P4Parser:
                        | expression TIMES expression
                        | expression LSHIFT expression
                        | expression RSHIFT expression
+                       | expression MOD expression
+                       | expression DIVIDE expression
                        | expression AND expression
                        | expression OR expression
                        | expression XOR expression
