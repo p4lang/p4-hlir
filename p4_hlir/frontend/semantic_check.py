@@ -900,7 +900,7 @@ def eval_binary_op(expr, left, right):
     elif op == "%" or op == '/':
         if left < 0 or right <= 0:
             error_msg = "Error in file %s at line %d:"\
-                        " Invalid operands for '%d' operation"\
+                        " Invalid operands for '%s' operation"\
                         % (expr.filename, expr.lineno, op)
             P4TreeNode.print_error(error_msg)
             # if error return an 'arbitrary' value
