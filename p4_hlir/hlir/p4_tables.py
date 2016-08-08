@@ -490,10 +490,17 @@ def _find_conditional_barrier(entry_point, node, visited):
         r = (entry_point, cond)
         visited[entry_point] = r
         return r
-    for r in diff_results:
-        if type(r) is not bool:
-            visited[entry_point] = r
-            return r
+    diff_results = [r for r in diff_results if type(r) is not bool]
+    # when no optimization is done, diff_results should have exactly one
+    # element, but with optimization, it can actually be a list with several
+    # elements
+    assert(len(diff_results) > 0)
+    if len(diff_results) == 1:
+        r = diff_results.pop()
+    else:
+        r = tuple(diff_results)
+    visited[entry_point] = r
+    return r
 
 def _update_conditional_barriers(hlir):
     for _, node in hlir.p4_nodes.items():
@@ -513,7 +520,7 @@ def _update_conditional_barriers(hlir):
         if not node._mark_used: continue
         if node.conditional_barrier == True:
             node.conditional_barrier = None
-        # print node, node.conditional_barrier
+        # print node, "has cb", node.conditional_barrier
         
     
     # for _, node in hlir.p4_nodes.items():
