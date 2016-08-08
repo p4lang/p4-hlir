@@ -178,6 +178,9 @@ class rmt_table_dependency():
         # fields that induce the dependency
         self.fields = {}
 
+        # for conditional dependencies
+        self.cond = None
+
     # def __eq__(self, other):
     #     return (self.from_ == other.from_ and self.to == other.to)
 
@@ -197,16 +200,16 @@ class rmt_table_dependency():
             return SuccessorDep(self.from_.p4_table,
                                 self.to.p4_table,
                                 self.fields,
-                                self.to.conditional_barrier[1])
+                                self.cond)
         elif self.type_ == Dependency.PREDICATION:
             return SuccessorDep(self.from_.p4_table,
                                 self.to.p4_table,
                                 self.fields,
-                                self.to.conditional_barrier[1])
+                                self.cond)
         elif self.type_ == Dependency.REVERSE_READ:
             return ReverseReadDep(self.from_.p4_table,
-                                   self.to.p4_table,
-                                   self.fields)
+                                  self.to.p4_table,
+                                  self.fields)
         else:
             return None
 
@@ -231,17 +234,24 @@ class rmt_table_dependency():
     # conditionals in the control flow from the ones introduced by the
     # next_table attribute in P4 table specification
     def is_predication_dependency(self):
-        if self.to.conditional_barrier and\
-           self.from_ == self.to.conditional_barrier[0] and\
-           type(self.to.conditional_barrier[1]) in {set, str, tuple, p4.p4_action}:
-            return True
+        cbs = self.to.conditional_barrier
+        if not cbs:
+            return False
+        for cb in cbs:
+            if self.from_ == cb[0] and\
+               type(cb[1]) in {set, str, tuple, p4.p4_action}:
+                self.cond = cb[1]
+                return True
         return False
 
     def is_successor_dependency(self):
-        if self.to.conditional_barrier and\
-           self.from_ == self.to.conditional_barrier[0] and\
-           type(self.to.conditional_barrier[1]) is bool:
-            return True
+        cbs = self.to.conditional_barrier
+        if not cbs:
+            return False
+        for cb in cbs:
+            if self.from_ == cb[0] and type(cb[1]) is bool:
+                self.cond = cb[1]
+                return True
         return False
 
     def is_reverse_read_dependency(self):
@@ -302,11 +312,24 @@ class rmt_table_graph():
             if self.field_used(field, next_control_table): return True
         return False
 
+    def resolve_cbs(self):
+        for t in self._nodes.values():
+            if not t.conditional_barrier:
+                continue
+            if type(t.conditional_barrier) is list:
+                t.conditional_barrier = [(self._p4_visited[x[0]], x[1]) for x in t.conditional_barrier]
+            else:
+                x = t.conditional_barrier
+                t.conditional_barrier = [(self._p4_visited[x[0]], x[1])]
+
     def add_p4_node(self, p4_node):
         assert(p4_node not in self)
         cb_p4 = p4_node.conditional_barrier
         if cb_p4:
-            cb = self._p4_visited[cb_p4[0]], cb_p4[1]
+            if type(cb_p4[0]) is tuple:
+                cb = list(cb_p4)
+            else:
+                cb = cb_p4
         else:
             cb = None
         if type(p4_node) is p4.p4_table:
@@ -556,7 +579,8 @@ def rmt_build_table_graph(name, entry):
     table_graph = rmt_table_graph()
     dummy_table = table_graph.add_dummy_table(name)
     parse_p4_table_graph(table_graph, entry,
-                            parent = dummy_table)
+                         parent = dummy_table)
+    table_graph.resolve_cbs()
     assert( table_graph.validate() )
     table_graph.resolve_dependencies()
     return table_graph
