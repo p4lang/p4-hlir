@@ -317,10 +317,13 @@ def p4_action_validate_types(hlir):
         action.flatten(hlir)
 
     for action in hlir.p4_actions.values():
+        params = {}
+        for idx, a in enumerate(action.signature):
+            params[a] = idx
         for call in action.flat_call_sequence:
             for arg_idx, arg in enumerate(call[1]):
                 if isinstance(arg, p4_expression):
-                    arg.resolve_names(hlir)
+                    arg.resolve_names(hlir, params)
 
 #############################################################################
 ## Control flow
