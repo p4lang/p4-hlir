@@ -61,16 +61,22 @@ class p4_expression(object):
                 self.op+" "+
                 str(self.right)+")")
 
-    def resolve_names(self, hlir):
+    def resolve_names(self, hlir, local_vars={}):
         if self.op=="valid":
             self.right = hlir.p4_header_instances[self.right]
         else:
             if type(self.left) is p4_expression:
-                self.left.resolve_names (hlir)
+                self.left.resolve_names(hlir, local_vars)
             elif type(self.left) is str:
-                self.left = hlir.p4_fields[self.left]
+                if self.left in local_vars:
+                    self.left = local_vars[self.left]
+                else:
+                    self.left = hlir.p4_fields[self.left]
 
             if type(self.right) is p4_expression:
-                self.right.resolve_names (hlir)
+                self.right.resolve_names(hlir, local_vars)
             elif type(self.right) is str:
-                self.right = hlir.p4_fields[self.right]
+                if self.right in local_vars:
+                    self.right = local_vars[self.right]
+                else:
+                    self.right = hlir.p4_fields[self.right]
