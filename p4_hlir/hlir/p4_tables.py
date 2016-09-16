@@ -546,8 +546,6 @@ def _remove_unused_conditions(hlir):
             if not p4_node._mark_used: continue
             for a, nt in p4_node.next_.items():
                 if not nt: continue
-                # if it is a next node of a used node, it has to be used...
-                assert(nt._mark_used)
                 if not isinstance(nt, p4_conditional_node): continue
                 if nt.next_[True] == nt.next_[False]:
                     assert(nt not in conditions_used)
