@@ -461,7 +461,15 @@ def _find_conditional_barrier(entry_point, node, visited):
     if len(diff_results) == 1:
         r = diff_results.pop()
     else:
-        r = tuple(diff_results)
+        def reduce(res):
+            s = set()
+            for x in res:
+                if type(x[0]) is tuple:
+                    s |= set(x)
+                else:
+                    s.add(x)
+            return tuple(s)
+        r = reduce(diff_results)
     visited[entry_point] = r
     return r
 
