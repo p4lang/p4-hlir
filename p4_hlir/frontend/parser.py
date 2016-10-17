@@ -1528,7 +1528,7 @@ class P4Parser:
                                 RBRACE
         """
         p[0] = P4Table(self.get_filename(), p.lineno(1),
-                       p[2], None, p[5], p[4], p[6], p[7], p[8], p[9])
+                       p[2], None, p[5], None, p[4], p[6], p[7], p[8], p[9])
 
     def p_table_declaration_error_1(self, p):
         """ table_declaration : TABLE ID LBRACE error RBRACE
