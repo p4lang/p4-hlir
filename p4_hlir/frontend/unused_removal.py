@@ -107,9 +107,15 @@ def mark_used_P4Table(self, objects, types = None):
     if self.action_profile:
         self.action_profile.mark_used(objects, {P4ActionProfile})
 
+    if self.default_action:
+        self.default_action.mark_used(objects)
+
 def mark_used_P4TableFieldMatch(self, objects, types = None):
     field = self.field_or_masked[0]
     field.mark_used(objects, {P4HeaderInstance})
+
+def mark_used_P4TableDefaultAction(self, objects, types = None):
+    self.action_name.mark_used(objects, {P4Action})
 
 def mark_used_P4ActionProfile(self, objects, types = None):
     for action_and_next in self.action_spec:
@@ -306,6 +312,7 @@ P4CurrentExpression.mark_used = mark_used_P4CurrentExpression
 P4ActionCall.mark_used = mark_used_P4ActionCall
 
 P4TableFieldMatch.mark_used = mark_used_P4TableFieldMatch
+P4TableDefaultAction.mark_used = mark_used_P4TableDefaultAction
 
 P4ControlFunctionStatement.mark_used = mark_used_P4ControlFunctionStatement
 P4ControlFunctionApply.mark_used = mark_used_P4ControlFunctionApply
