@@ -563,13 +563,21 @@ def parse_p4_table_graph(table_graph, p4_node,
             nt = next_tables[a]
             if nt: table_actions[nt].add(a)
         if hit_miss:
+            def_action = None
+            if p4_node.default_action is not None:
+                def_action = p4_node.default_action[0]
             for hit_or_miss, nt in next_tables.items():
-                if nt: parse_p4_table_graph(table_graph, nt, table,
-                                               action_set = {hit_or_miss})
+                if not nt: continue
+                if def_action is not None and hit_or_miss == "miss":
+                    parse_p4_table_graph(table_graph, nt, table,
+                                         action_set = {def_action})
+                else:
+                    parse_p4_table_graph(table_graph, nt, table,
+                                         action_set = {hit_or_miss})
         else:
             for nt, a_set in table_actions.items():
                 parse_p4_table_graph(table_graph, nt, table,
-                                        action_set = a_set)
+                                     action_set = a_set)
                                    
     else:
         print type(p4_node)

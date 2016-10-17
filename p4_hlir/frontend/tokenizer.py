@@ -66,7 +66,7 @@ class P4Lexer:
         'FIELD_LIST', 'FIELD_LIST_CALCULATION',
         'CALCULATED_FIELD',
         'COUNTER', 'METER', 'REGISTER',
-        'READS', 'ACTIONS', 'MIN_SIZE', 'MAX_SIZE', 'SIZE',
+        'READS', 'ACTIONS', 'MIN_SIZE', 'MAX_SIZE', 'SIZE', 'DEFAULT_ACTION',
         'INPUT', 'ALGORITHM', 'OUTPUT_WIDTH',
         'VERIFY', 'UPDATE',
         'TYPE', 'DIRECT', 'STATIC',

@@ -1507,6 +1507,7 @@ class P4Parser:
         """ table_declaration : TABLE ID LBRACE \
                                      table_reads \
                                      action_specification \
+                                     default_action \
                                      table_min_size \
                                      table_max_size \
                                      table_size \
@@ -1514,7 +1515,7 @@ class P4Parser:
                                 RBRACE
         """
         p[0] = P4Table(self.get_filename(), p.lineno(1),
-                       p[2], p[5], None, p[4], p[6], p[7], p[8], p[9])
+                       p[2], p[5], None, p[6], p[4], p[7], p[8], p[9], p[10])
 
     def p_table_declaration_2(self, p):
         """ table_declaration : TABLE ID LBRACE \
@@ -1657,6 +1658,61 @@ class P4Parser:
         """ action_and_next : ID
         """
         p[0] = P4RefExpression(self.get_filename(), p.lineno(1), p[1])
+
+    def p_default_action_1(self, p):
+        """ default_action : empty
+        """
+        pass   # None
+
+    def p_default_action_2(self, p):
+        """ default_action : DEFAULT_ACTION COLON ID LPAREN action_data RPAREN SEMI
+        """
+        p[0] = P4TableDefaultAction(
+            self.get_filename(), p.lineno(1),
+            P4RefExpression(self.get_filename(), p.lineno(3), p[3]),
+            p[5]
+        )
+
+    def p_default_action_3(self, p):
+        """ default_action : DEFAULT_ACTION COLON ID SEMI
+        """
+        p[0] = P4TableDefaultAction(
+            self.get_filename(), p.lineno(1),
+            P4RefExpression(self.get_filename(), p.lineno(3), p[3]),
+            None
+        )
+
+    def p_default_action_error_1(self, p):
+        """ default_action : DEFAULT_ACTION error SEMI
+        """
+        self.print_error(p.lineno(1),
+                         "Invalid default_action attribute for table")
+
+    def p_default_action_error_2(self, p):
+        """ default_action : DEFAULT_ACTION error
+        """
+        self.print_error(p.lineno(1),
+                         "Invalid default_action attribute for table, missing semi-colon")
+
+    def p_action_data_1(self, p):
+        """ action_data : empty
+        """
+        p[0] = []
+
+    def p_action_data_2(self, p):
+        """ action_data : action_data_list
+        """
+        p[0] = p[1]
+
+    def p_action_data_list_1(self, p):
+        """ action_data_list : const_value
+        """
+        p[0] = [p[1]]
+
+    def p_action_data_list_2(self, p):
+        """ action_data_list : const_value COMMA action_data_list
+        """
+        p[0] = [p[1]] + p[3]
     
     def p_table_min_size_1(self, p):
         """ table_min_size : empty

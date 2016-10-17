@@ -370,12 +370,14 @@ class P4ActionCall(P4TreeNode):
 
 class P4Table(P4NamedObject):
     def __init__(self, filename, lineno, name, action_spec, action_profile,
+                 default_action = None,
                  reads = [], min_size = None, max_size = None, size = None,
                  support_timeout = None):
         super(P4Table, self).__init__(filename, lineno, name)
         self.reads = reads
         self.action_spec = action_spec
         self.action_profile = action_profile
+        self.default_action = default_action
         self.min_size = min_size
         self.max_size = max_size
         self.size = size
@@ -389,6 +391,12 @@ class P4TableFieldMatch(P4TreeNode):
         super(P4TableFieldMatch, self).__init__(filename, lineno)
         self.field_or_masked = field_or_masked
         self.match_type = match_type
+
+class P4TableDefaultAction(P4TreeNode):
+    def __init__(self, filename, lineno, action_name, action_data):
+        super(P4TableDefaultAction, self).__init__(filename, lineno)
+        self.action_name = action_name
+        self.action_data = action_data
 
 class P4ActionProfile(P4NamedObject):
     def __init__(self, filename, lineno, name, action_spec,

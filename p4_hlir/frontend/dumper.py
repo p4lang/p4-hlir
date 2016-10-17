@@ -120,6 +120,7 @@ class P4HlirDumper:
         P4ActionCall.dump_to_p4 = dump_to_p4_P4ActionCall
 
         P4TableFieldMatch.dump_to_p4 = dump_to_p4_P4TableFieldMatch
+        P4TableDefaultAction.dump_to_p4 = dump_to_p4_P4TableDefaultAction
 
         P4ControlFunctionStatement.dump_to_p4 = dump_to_p4_P4ControlFunctionStatement
         P4ControlFunctionApply.dump_to_p4 = dump_to_p4_P4ControlFunctionApply
@@ -457,6 +458,8 @@ def dump_to_p4_P4Table(self, hlir):
             optional_attributes["max_size"] = None
     if self.support_timeout is not None:
         optional_attributes["support_timeout"] = self.support_timeout.dump_to_p4(hlir)
+    if self.default_action:
+        optional_attributes["default_action"] = self.default_action.dump_to_p4(hlir)
     g_table = p4_table(
         hlir,
         self.name,
@@ -524,6 +527,12 @@ def dump_to_p4_P4TableFieldMatch(self, hlir):
         mask = self.field_or_masked[1].dump_to_p4(hlir)
 
     return (field, match_type, mask)
+
+def dump_to_p4_P4TableDefaultAction(self, hlir):
+    action_data = None
+    if self.action_data:
+        action_data = [d.dump_to_p4(hlir) for d in self.action_data]
+    return (self.action_name.dump_to_p4(hlir), action_data)
 
 def dump_to_p4_P4ControlFunction(self, hlir):
     call_sequence = [statement.dump_to_p4(hlir) for statement in self.statements]

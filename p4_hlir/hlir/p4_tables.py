@@ -97,7 +97,7 @@ class p4_table (p4_node):
     TODO
     """
     required_attributes = ["name", "match_fields", "actions", "action_profile"]
-    allowed_attributes = required_attributes + ["doc", "min_size", "max_size", "size", "support_timeout"]
+    allowed_attributes = required_attributes + ["doc", "min_size", "max_size", "size", "support_timeout", "default_action"]
 
     def __init__ (self, hlir, name, **kwargs):
         p4_node.__init__(self, hlir, name, **kwargs)
@@ -107,6 +107,16 @@ class p4_table (p4_node):
 
         if not hasattr(self, "support_timeout"):
             self.support_timeout = False
+
+        if not hasattr(self, "default_action"):
+            self.default_action = None
+
+        self.action_default_only = False
+        if self.default_action:
+            default_action = self.default_action[0]
+            if default_action not in self.actions:
+                self.actions.append(default_action)
+                self.action_default_only = True
 
         # references to attached stateful memories
         self.attached_counters = []
@@ -140,6 +150,10 @@ class p4_table (p4_node):
     def build (self, hlir):
         self.build_fields(hlir)
         self.build_actions(hlir)
+
+        if self.default_action:
+            default_action, default_data = self.default_action
+            self.default_action = (hlir.p4_actions[default_action], default_data)
 
 class p4_action_profile (p4_object):
     """

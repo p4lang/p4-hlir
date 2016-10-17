@@ -117,6 +117,7 @@ class P4SemanticChecker:
         P4ActionCall.check = check_P4ActionCall
 
         P4TableFieldMatch.check = check_P4TableFieldMatch
+        P4TableDefaultAction.check = check_P4TableDefaultAction
 
         P4ControlFunctionStatement.check = check_P4ControlFunctionStatement
         P4ControlFunctionApply.check = check_P4ControlFunctionApply
@@ -176,6 +177,7 @@ class P4SemanticChecker:
         P4Table.import_table_actions = import_table_actions_P4Table
         P4ActionProfile.import_table_actions = import_table_actions_P4ActionProfile
         P4RefExpression.import_table_actions = import_table_actions_P4RefExpression
+        P4TableDefaultAction.import_table_actions = import_table_actions_P4TableDefaultAction
 
         P4Program.check_apply_action_cases = check_apply_action_cases_P4Program
         P4ControlFunction.check_apply_action_cases = check_apply_action_cases_P4ControlFunction
@@ -524,12 +526,18 @@ def import_table_actions_P4Table(self, objects, table_actions, table_name = None
         action_profile = objects.get_object(self.action_profile.name, P4ActionProfile)
         action_profile.import_table_actions(objects, table_actions, table_name = self.name)
 
+    if self.default_action:
+        self.default_action.import_table_actions(objects, table_actions, table_name = self.name)
+
 def import_table_actions_P4ActionProfile(self, objects, table_actions, table_name = None):
     for action_ref in self.action_spec:
         action_ref.import_table_actions(objects, table_actions, table_name = table_name)
 
 def import_table_actions_P4RefExpression(self, objects, table_actions, table_name = None):
     table_actions[table_name].add(self.name)
+
+def import_table_actions_P4TableDefaultAction(self, objects, table_actions, table_name = None):
+    self.action_name.import_table_actions(objects, table_actions, table_name = table_name)
 
 def check_apply_action_cases_P4Program(self, table_actions, apply_table = None):
     for obj in self.objects:
@@ -949,6 +957,16 @@ def check_P4Table(self, symbols, header_fields, objects, types = None):
         self.action_profile.check(symbols, header_fields, objects,
                                   {Types.action_profile})        
 
+    if self.default_action and not self.action_spec:
+        assert(self.action_profile)
+        error_msg = "In the definition of table %s in file %s at line %d:"\
+                    " default_action specified but no action list"\
+                    % (self.name, self.filename, self.lineno)
+        P4TreeNode.print_error(error_msg)
+
+    if self.default_action:
+        self.default_action.check(symbols, header_fields, objects)
+
 def check_P4TableFieldMatch(self, symbols, header_fields, objects, types = None):
     field = self.field_or_masked[0]
     if self.match_type in {"exact", "ternary", "range", "lpm"}:
@@ -960,6 +978,19 @@ def check_P4TableFieldMatch(self, symbols, header_fields, objects, types = None)
         error_msg = "Unknown match type %s in file %s at line %d"\
                     % (self.match_type, self.filename, self.lineno)
         P4TreeNode.print_error(error_msg)
+
+def check_P4TableDefaultAction(self, symbols, header_fields, objects, types = None):
+    check = self.action_name.check(symbols, header_fields, objects,
+                                   {Types.action_function})
+    if check and (self.action_data is not None):
+        name = self.action_name.name
+        default_action = objects.get_object(name, P4Action)
+        action_data_size = len(self.action_data)
+        if action_data_size != default_action.required_args:
+            error_msg = "In file %s at line %d: default_action %s"\
+                        " does not have the required number of args"\
+                        % (self.filename, self.lineno, name)
+            P4TreeNode.print_error(error_msg)
 
 def check_P4ActionProfile(self, symbols, header_fields, objects, types = None):
     for action_and_next in self.action_spec:
