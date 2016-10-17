@@ -530,7 +530,7 @@ def dump_to_p4_P4TableFieldMatch(self, hlir):
 
 def dump_to_p4_P4TableDefaultAction(self, hlir):
     action_data = None
-    if self.action_data:
+    if self.action_data is not None:
         action_data = [d.dump_to_p4(hlir) for d in self.action_data]
     return (self.action_name.dump_to_p4(hlir), action_data)
 
