@@ -134,12 +134,7 @@ class P4Lexer:
         'SEMI', 'COLON', # ; :
         'APOSTROPHE', # '
 
-        # pre-processor
-        'PPHASH', # '#'
-
         'PRAGMA', 'STR',
-
-        # 'PPHASH',
     ) + keywords
     
     # Regular expression rules for simple tokens
@@ -239,6 +234,8 @@ class P4Lexer:
         r'.+'
         return t
         
+    def t_pragma_error(self, t):
+        self._error('invalid pragma', t)
 
     ##
     ## Rules for the ppline state
