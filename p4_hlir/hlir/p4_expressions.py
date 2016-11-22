@@ -57,7 +57,7 @@ class p4_expression(object):
         self.right = right
 
     def __str__ (self):
-        return ("("+(str(self.left)+" " if self.left else "")+
+        return ("("+(str(self.left)+" " if self.left is not None else "")+
                 self.op+" "+
                 str(self.right)+")")
 
