@@ -375,7 +375,8 @@ class p4_control_flow (p4_object):
                     calls[idx][0].control_flow_parent = self.name
 
                 elif call[0] == "if_node":
-                    call[1].resolve_names(hlir)
+                    if type(call[1]) is not bool:
+                        call[1].resolve_names(hlir)
                     build_calls(hlir, call[2])
                     build_calls(hlir, call[3])
                     calls[idx] = (call[1], call[2], call[3])

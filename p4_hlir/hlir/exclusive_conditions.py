@@ -147,6 +147,12 @@ class Solver():
 
     def _check_condition(self, c, hdrs_valid):
         if not c: return Solver.TRUE
+        if type(c) is bool:
+            if c:
+                return Solver.TRUE
+            else:
+                return Solver.FALSE
+        assert(type(c) is p4.p4_expression)
         if c.op == "valid":
             if hdrs_valid[c.right]:
                 return Solver.TRUE

@@ -1055,7 +1055,7 @@ def check_P4ControlFunctionApplyHitMissCase(self, symbols, header_fields, object
         statement.check(symbols, header_fields, objects)
 
 def check_P4ControlFunctionIfElse(self, symbols, header_fields, objects, types = None):
-    self.cond.check(symbols, header_fields, objects)
+    self.cond.check(symbols, header_fields, objects, {Types.bool_})
     for statement in self.if_body:
         statement.check(symbols, header_fields, objects)
     for statement in self.else_body:
