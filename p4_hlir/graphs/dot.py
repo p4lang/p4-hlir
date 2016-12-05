@@ -1,9 +1,9 @@
-# Copyright 2013-present Barefoot Networks, Inc. 
-# 
+# Copyright 2013-present Barefoot Networks, Inc.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
@@ -41,7 +41,7 @@ def dump_table(node, exit_node, visited=None):
         p += "   %s [shape=ellipse];\n" % node.name
     elif type(node) is p4.p4_conditional_node:
         p += "   %s [shape=box label=\"%s\"];\n" % (get_call_name(node), str(node.condition))
-            
+
     for label, next_node in node.next_.items():
         if type(node) is p4.p4_table:
             arrowhead = "normal"
@@ -118,6 +118,21 @@ def generate_graph_eps(dot, out):
     with open(out, 'w') as epsf:
         subprocess.check_call(["dot", "-Teps", dot], stdout = epsf)
 
+def generate_graph(filename_dot, path_root):
+    filename_png = path_root + ".png"
+    filename_eps = path_root + ".eps"
+    try:
+        generate_graph_png(filename_dot, filename_png)
+        return
+    except:
+        pass
+    print "Failed to generate graph in png format, falling back to eps."
+    try:
+        generate_graph_eps(filename_dot, filename_eps)
+    except:
+        pass
+    print "Failed to generate graph."
+
 def export_parse_graph(hlir, filebase, gen_dir):
     program_str = "digraph g {\n"
     program_str += "   wire [shape=doublecircle];\n"
@@ -133,14 +148,7 @@ def export_parse_graph(hlir, filebase, gen_dir):
     with open(filename_dot, "w") as dotf:
         dotf.write(program_str)
 
-    filename_png = os.path.join(gen_dir, filebase + ".parser.png")
-    filename_eps = os.path.join(gen_dir, filebase + ".parser.eps")
-    try:
-        generate_graph_png(filename_dot, filename_png)
-    except:
-        print 'Generating eps'
-        generate_graph_eps(filename_dot, filename_eps)
-
+    generate_graph(filename_dot, os.path.join(gen_dir, filebase + ".parser"))
 
 def export_table_graph(hlir, filebase, gen_dir, predecessors=False):
     program_str = "digraph g {\n"
@@ -165,16 +173,10 @@ def export_table_graph(hlir, filebase, gen_dir, predecessors=False):
     with open(filename_dot, "w") as dotf:
         dotf.write(program_str)
 
-    filename_png = os.path.join(gen_dir, filebase + ".tables.png")
-    filename_eps = os.path.join(gen_dir, filebase + ".tables.eps")
-    try:
-        generate_graph_png(filename_dot, filename_png)
-    except:
-        print 'Generating eps'
-        generate_graph_eps(filename_dot, filename_eps)
+    generate_graph(filename_dot, os.path.join(gen_dir, filebase + ".tables"))
 
 def export_table_dependency_graph(hlir, filebase, gen_dir, show_conds = False):
-    print 
+    print
     print "TABLE DEPENDENCIES..."
 
     print
@@ -186,14 +188,9 @@ def export_table_dependency_graph(hlir, filebase, gen_dir, show_conds = False):
     print "pipeline ingress requires at least", min_stages, "stages"
     with open(filename_dot, 'w') as dotf:
         graph.generate_dot(out = dotf)
-    
-    filename_png = os.path.join(gen_dir, filebase + ".ingress.tables_dep.png")
-    filename_eps = os.path.join(gen_dir, filebase + ".ingress.tables_dep.eps")
-    try:
-        generate_graph_png(filename_dot, filename_png)
-    except:
-        print 'Generating eps'
-        generate_graph_eps(filename_dot, filename_eps)
+
+    generate_graph(filename_dot,
+                   os.path.join(gen_dir, filebase + ".ingress.tables_dep"))
 
     print
     print "EGRESS PIPELINE"
@@ -205,13 +202,8 @@ def export_table_dependency_graph(hlir, filebase, gen_dir, show_conds = False):
         with open(filename_dot, 'w') as dotf:
             graph.generate_dot(out = dotf)
 
-        filename_png = os.path.join(gen_dir, filebase + ".egress.tables_dep.png")
-        filename_eps = os.path.join(gen_dir, filebase + ".egress.tables_dep.eps")
-        try:
-            generate_graph_png(filename_dot, filename_png)
-        except:
-            print 'Generating eps'
-            generate_graph_eps(filename_dot, filename_eps)
+        generate_graph(filename_dot,
+                       os.path.join(gen_dir, filebase + ".egress.tables_dep"))
     else:
         print "Egress pipeline is empty"
 

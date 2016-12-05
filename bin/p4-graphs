@@ -20,6 +20,7 @@ import sys
 from p4_hlir.main import HLIR
 import p4_hlir.graphs.dot as dot
 import json
+import subprocess
 
 def get_parser():
     parser = argparse.ArgumentParser(description='p4c-dot arguments')
@@ -48,6 +49,18 @@ def get_parser():
                         (to be used in addition to the standard ones)")
 
     return parser
+
+def check_for_dot():
+    try:
+        with open(os.devnull, 'w') as devnull:
+            subprocess.check_call(["dot", "-?"], stdout=devnull)
+        return True
+    except:
+        print "The 'dot' binary was not found.",
+        print "This tool is distributed as part of the 'graphviz' package."
+        print "If you are using a Debian system, try installing it with",
+        print "'sudo apt-get install graphviz'."
+        return False
 
 def _get_p4_basename(p4_source):
     return os.path.splitext(os.path.basename(p4_source))[0]
@@ -92,6 +105,9 @@ def main():
 
     if not h.build():
         print "Error while building HLIR"
+        sys.exit(1)
+
+    if not check_for_dot():
         sys.exit(1)
 
     print "Generating files in directory", gen_dir

@@ -16,9 +16,9 @@
 
 from p4_hlir.main import HLIR
 import argparse
-import yaml
 import logging
 import json
+import sys
 
 parser = argparse.ArgumentParser(description='P4 source code compiler')
 parser.add_argument('sources', metavar='source', type=str, nargs='+',
@@ -43,9 +43,15 @@ h = HLIR(*args.sources)
 for primitive_f in args.primitives:
     with open(primitive_f, 'r') as fp:
         h.add_primitives(json.load(fp))
-h.build()
+success = h.build()
 
-if args.dump_hlir:
+if args.dump_hlir and success:
+    try:
+        import yaml
+    except ImportError:
+        print "You asked to dump the HLIR in YAML format,",
+        print "but the Python 'yaml' package is not installed."
+        sys.exit(1)
     with open(args.hlir_name, 'w') as dump:
         yaml.dump([h.p4_parse_states['start'],
                    h.p4_ingress_ptr, h.p4_egress_ptr], dump)
