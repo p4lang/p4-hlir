@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-# Copyright 2013-present Barefoot Networks, Inc. 
-# 
+# Copyright 2013-present Barefoot Networks, Inc.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
@@ -20,38 +20,47 @@ import logging
 import json
 import sys
 
-parser = argparse.ArgumentParser(description='P4 source code compiler')
-parser.add_argument('sources', metavar='source', type=str, nargs='+',
-                    help='a list of source files to include in the P4 program')
-parser.add_argument('--dump_hlir', action='store_true',
-                    default = False, help='dump hlir after parsing')
-parser.add_argument("--hlir_name", help="Name for HLIR dump file",
-                    type=str, action="store", default="hlir.yml")
-parser.add_argument('--verbose', '-v', action='count',
-                    help='set verbosity level')
-parser.add_argument('--primitives', action='append', default = [],
-                    help="A JSON file which contains primitive declarations \
-                    (to be used in addition to the standard ones)")
+def get_parser():
+    parser = argparse.ArgumentParser(description='P4 source code compiler')
+    parser.add_argument('sources', metavar='source', type=str, nargs='+',
+                        help="a list of source files to include in the P4 "
+                        "program")
+    parser.add_argument('--dump_hlir', action='store_true',
+                        default = False,
+                        help="dump hlir after parsing in YAML format")
+    parser.add_argument("--hlir_name", help="Name for HLIR dump file",
+                        type=str, action="store", default="hlir.yml")
+    parser.add_argument('--verbose', '-v', action='count',
+                        help='set verbosity level')
+    parser.add_argument('--primitives', action='append', default = [],
+                        help="A JSON file which contains primitive "
+                        "declarations (to be used in addition to the standard "
+                        "ones)")
+    return parser
 
-args = parser.parse_args()
+def main():
+    args = get_parser().parse_args()
 
-# TODO: different levels
-if args.verbose > 0:
-    logging.basicConfig(level=logging.DEBUG)
+    # TODO: different levels
+    if args.verbose > 0:
+        logging.basicConfig(level=logging.DEBUG)
 
-h = HLIR(*args.sources)
-for primitive_f in args.primitives:
-    with open(primitive_f, 'r') as fp:
-        h.add_primitives(json.load(fp))
-success = h.build()
+    h = HLIR(*args.sources)
+    for primitive_f in args.primitives:
+        with open(primitive_f, 'r') as fp:
+            h.add_primitives(json.load(fp))
+    success = h.build()
 
-if args.dump_hlir and success:
-    try:
-        import yaml
-    except ImportError:
-        print "You asked to dump the HLIR in YAML format,",
-        print "but the Python 'yaml' package is not installed."
-        sys.exit(1)
-    with open(args.hlir_name, 'w') as dump:
-        yaml.dump([h.p4_parse_states['start'],
-                   h.p4_ingress_ptr, h.p4_egress_ptr], dump)
+    if args.dump_hlir and success:
+        try:
+            import yaml
+        except ImportError:
+            print "You asked to dump the HLIR in YAML format,",
+            print "but the Python 'yaml' package is not installed."
+            sys.exit(1)
+        with open(args.hlir_name, 'w') as dump:
+            yaml.dump([h.p4_parse_states['start'],
+                       h.p4_ingress_ptr, h.p4_egress_ptr], dump)
+
+if __name__ == "__main__":
+    main()
