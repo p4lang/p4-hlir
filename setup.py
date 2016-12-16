@@ -16,25 +16,36 @@
 
 from setuptools import setup
 from setuptools.command.install import install
+from setuptools.command.install_scripts import install_scripts
 import p4_hlir
 import os
-import tempfile
-import shutil
 import re
 
 SETUP_PY_PATH = os.path.dirname(__file__)
 
-tempdir = tempfile.mkdtemp()
 scripts = ['p4-validate', 'p4-graphs', 'p4-shell']
 
-# pre-install hook
+install_lib = None
+
 class CustomInstall(install):
     def run(self):
+        # in this step we simply retrieve the installation path that we need to
+        # append to the PYTHONPATH dynamically
+        global install_lib
+        assert(install_lib is None)
         # we use the platform-dependent install path computed by setuptools
-        install_lib = self.install_lib
+        install_lib = os.path.abspath(self.install_lib)
+        install.run(self)
 
-        def process_one(in_path, out_path):
-            with open(in_path, "r") as fin:
+class CustomInstallScripts(install_scripts):
+    def run(self):
+        # in this second step we edit the scripts in place in the build
+        # directory to add install_lib to the PYTHONPATH; the modified scripts
+        # will be copied to the installation directory by setuptools
+        assert(install_lib is not None)
+
+        def process_one(path):
+            with open(path, "r") as fin:
                 # add the directory to the PYHTONPATH before the first import
                 p = re.compile('(^(?!#).*import.*)', re.MULTILINE)
                 text = fin.read()
@@ -42,14 +53,13 @@ class CustomInstall(install):
                                  'sys.path.append("{}")\n'
                                  '\g<1>'.format(install_lib),
                                  text, count=1)
-            with open(out_path, "w") as fout:
+            with open(path, "w") as fout:
                 fout.write(new_text)
 
         for s in scripts:
-            process_one(os.path.join(SETUP_PY_PATH, 'bin', s),
-                        os.path.join(tempdir, s))
+            process_one(os.path.join(self.build_dir, s))
 
-        install.run(self)
+        install_scripts.run(self)
 
 setup(
     name = 'p4_hlir',
@@ -60,13 +70,12 @@ setup(
     package_data = {
         'p4_hlir/frontend' : ['*.json'],
     },
-    scripts = [os.path.join(tempdir, s) for s in scripts],
+    scripts = [os.path.join("bin", s) for s in scripts],
     author = 'Antonin BAS',
     author_email = 'antonin@barefootnetworks.com',
     description = 'p4_hlir: frontend for the P4 compiler',
     license = '',
     url = 'http://www.barefootnetworks.com/',
-    cmdclass={'install': CustomInstall},
+    cmdclass={'install': CustomInstall,
+              'install_scripts': CustomInstallScripts},
 )
-
-shutil.rmtree(tempdir)
