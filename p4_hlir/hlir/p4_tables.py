@@ -1,9 +1,9 @@
-# Copyright 2013-present Barefoot Networks, Inc. 
-# 
+# Copyright 2013-present Barefoot Networks, Inc.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
@@ -41,7 +41,7 @@ class p4_node(p4_object):
 
         if not self.valid_obj:
             return
-        
+
         self.control_flow_parent = None
         self.next_ = OrderedDict()
         # self.prev = OrderedSet()
@@ -49,8 +49,8 @@ class p4_node(p4_object):
         self.conditional_barrier = None
 
         self.dependencies_to = {} # tables to which this table have a dependency
-        self.dependencies_for = {} # tables for which this table is a dependency        
-    
+        self.dependencies_for = {} # tables for which this table is a dependency
+
         # the "default default" next node, according to the original P4 control
         # flow; if a table has not runtime-configured (or compile-time
         # configured) default action and there is a table miss, this node will
@@ -143,7 +143,7 @@ class p4_table (p4_node):
         else:
             for idx, action in enumerate(self.actions):
                 self.actions[idx] = hlir.p4_actions[action]
-            
+
         for idx, action in enumerate(self.actions):
             self.next_[self.actions[idx]] = None
 
@@ -247,13 +247,15 @@ def _p4_control_flow_to_table_graph(hlir,
             call_entry.control_flow_parent = parent_fn.name
             call_entry.conditional_barrier = conditional_barrier
 
+            visited_true = set()
+            visited_false = set()
             if len(call[1]) > 0:
                 true_entry, true_exit = _p4_control_flow_to_table_graph(
                     hlir,
                     call[1],
                     parent_fn,
                     (call_entry,True),
-                    visited
+                    visited_true
                 )
                 paths[True] = true_entry
                 # true_entry.prev.add(call_entry)
@@ -265,12 +267,28 @@ def _p4_control_flow_to_table_graph(hlir,
                     call[2],
                     parent_fn,
                     (call_entry,False),
-                    visited
+                    visited_false
                 )
                 paths[False] = false_entry
                 # false_entry.prev.add(call_entry)
                 next_parents += false_exit
 
+            # check that the union of visited paths has no intersection with the previously visited tables
+            common_tables = visited_true & visited_false
+            for t in common_tables:
+                table_next = filter((lambda x: x is not None), t.next_.values())
+                if len(table_next) != 0:
+                    raise p4_compiler_msg ( "Table(s): " + \
+                        str([x.name for x in common_tables]) + \
+                        " are invoked multiple times and have have next pointers set to: "
+                        + str(table_next))
+
+            multiple_tables = visited & (visited_true | visited_false)
+            if len(multiple_tables) > 0:
+                raise p4_compiler_msg ( "Table(s): " + \
+                    str([x.name for x in multiple_tables]) + \
+                    " invoked multiple times")
+            visited |= (visited_true | visited_false)
             call_entry.next_ = paths
             next_parents.append(call_entry)
 
@@ -308,7 +326,7 @@ def _p4_control_flow_to_table_graph(hlir,
                     paths[case[0]] = hit_miss_entry
                     # hit_miss_entry.prev.add(call_entry)
                     next_parents += hit_miss_exit
-                    
+
             else:
                 actions = set()
                 for case in case_list:
@@ -329,7 +347,7 @@ def _p4_control_flow_to_table_graph(hlir,
                     for action in case[0]:
                         assert(isinstance(action, p4_imperatives.p4_action))
                         paths[action] = action_entry
-                
+
                 for case in case_list:
                     if case[0] != "default": continue
                     if not case[1]: break
@@ -347,7 +365,7 @@ def _p4_control_flow_to_table_graph(hlir,
                     for action in remaining_actions:
                         paths[action] = action_entry
                     break
-                    
+
 
             call_entry.next_ = paths
             next_parents.append(call_entry)
@@ -506,8 +524,8 @@ def _update_conditional_barriers(hlir):
         if node.conditional_barrier == True:
             node.conditional_barrier = None
         # print node, "has cb", node.conditional_barrier
-        
-    
+
+
     # for _, node in hlir.p4_nodes.items():
     #     if not node._mark_used: continue
     #     cb = node.conditional_barrier
@@ -590,7 +608,7 @@ def optimize_table_graph(hlir):
         _set_modified_hdrs(hlir, ingress_ptr, set())
     if hlir.p4_egress_ptr:
         _set_modified_hdrs(hlir, hlir.p4_egress_ptr, set())
-        
+
     xconds = exclusive_conditions.Solver(hlir)
 
     change = True
