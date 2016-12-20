@@ -35,7 +35,14 @@ class CustomInstall(install):
         assert(install_lib is None)
         # we use the platform-dependent install path computed by setuptools
         install_lib = os.path.abspath(self.install_lib)
-        install.run(self)
+        # using install.run(self) causes setuptools to ignore install_requires
+        # for a complete explanation, refer to
+        # https://stackoverflow.com/questions/21915469/python-setuptools-install-requires-is-ignored-when-overriding-cmdclass
+        # install.run(self)
+        if self.old_and_unmanageable or self.single_version_externally_managed:
+            install.run(self)
+        else:
+            install.do_egg_install(self)
 
 class CustomInstallScripts(install_scripts):
     def run(self):
