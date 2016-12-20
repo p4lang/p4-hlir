@@ -26,20 +26,23 @@ SETUP_PY_PATH = os.path.dirname(__file__)
 scripts = ['p4-validate', 'p4-graphs', 'p4-shell']
 
 install_lib = None
+old_install = None
 
 class CustomInstall(install):
     def run(self):
         # in this step we simply retrieve the installation path that we need to
         # append to the PYTHONPATH dynamically
         global install_lib
+        global old_install
         assert(install_lib is None)
         # we use the platform-dependent install path computed by setuptools
         install_lib = os.path.abspath(self.install_lib)
+        old_install = (self.old_and_unmanageable or self.single_version_externally_managed)
         # using install.run(self) causes setuptools to ignore install_requires
         # for a complete explanation, refer to
         # https://stackoverflow.com/questions/21915469/python-setuptools-install-requires-is-ignored-when-overriding-cmdclass
         # install.run(self)
-        if self.old_and_unmanageable or self.single_version_externally_managed:
+        if old_install:
             install.run(self)
         else:
             install.do_egg_install(self)
@@ -63,8 +66,9 @@ class CustomInstallScripts(install_scripts):
             with open(path, "w") as fout:
                 fout.write(new_text)
 
-        for s in scripts:
-            process_one(os.path.join(self.build_dir, s))
+        if old_install:
+            for s in scripts:
+                process_one(os.path.join(self.build_dir, s))
 
         install_scripts.run(self)
 
