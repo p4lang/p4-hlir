@@ -32,7 +32,9 @@ class Types:
      action_profile,
      action_selector,
      control_function,
-     parser_exception) = range(22)
+     parser_exception,
+     header_stack_instance) = range(23)
+    type_count=0
 
     types_to_names = {
         header_type : "header type",
@@ -55,6 +57,7 @@ class Types:
         control_function : "control function",
         int_ : "integer value",
         parser_exception : "parser_exception",
+        header_stack_instance : "header_stack_instance",
     }
 
     @staticmethod
@@ -221,10 +224,9 @@ class P4HeaderInstance(P4NamedObject):
         return Types.header_instance
 
 class P4HeaderInstanceRegular(P4HeaderInstance):
-    def __init__(self, filename, lineno, header_type, name, size = None):
+    def __init__(self, filename, lineno, header_type, name):
         super(P4HeaderInstanceRegular, self).__init__(filename, lineno,
                                                       header_type, name)
-        self.size = size
 
 class P4HeaderInstanceMetadata(P4HeaderInstance):
     def __init__(self, filename, lineno, header_type, name, initializer = []):
@@ -236,6 +238,15 @@ class P4HeaderInstanceMetadata(P4HeaderInstance):
         if self.name == "standard_metadata": return True
         elif self.name == "intrinsic_metadata": return True
         else: return self._mark
+
+class P4HeaderStackInstance(P4NamedObject):
+    def __init__(self, filename, lineno, header_type, name, size):
+        super(P4HeaderStackInstance, self).__init__(filename, lineno, name)
+        self.header_type = header_type
+        self.size = size
+
+    def get_type_(self):
+        return Types.header_stack_instance
 
 class P4FieldList(P4NamedObject):
     def __init__(self, filename, lineno, name, entries):

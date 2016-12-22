@@ -14,7 +14,6 @@
 
 from ast import *
 
-
 def mark_used_P4Program(self, objects, types = None):
     for obj in self.objects:
         obj.mark_used(objects)
@@ -23,6 +22,10 @@ def mark_used_P4HeaderType(self, objects, types = None):
     pass
 
 def mark_used_P4HeaderInstance(self, objects, types = None):
+    obj = objects.get_object(self.header_type, P4HeaderType)
+    if obj: obj.mark()
+
+def mark_used_P4HeaderStackInstance(self, objects, types = None):
     obj = objects.get_object(self.header_type, P4HeaderType)
     if obj: obj.mark()
 
@@ -93,7 +96,7 @@ def mark_used_P4ActionCall(self, objects, types = None):
         arg.mark_used(
             objects,
             {P4HeaderInstance, P4FieldList, P4FieldListCalculation, P4Counter,
-             P4Meter, P4Register}
+             P4Meter, P4Register, P4HeaderStackInstance}
         )
 
 def mark_used_P4Table(self, objects, types = None):
@@ -183,12 +186,16 @@ def mark_used_P4FieldRefExpression(self, objects, types = None):
         header = last_extracted
         header_ref = objects.get_object(last_extracted, P4HeaderInstance)
         if header_ref: header_ref.mark()
+        header_ref = objects.get_object(last_extracted, P4HeaderStackInstance)
+        if header_ref: header_ref.mark()
     else:
-        self.header_ref.mark_used(objects, {P4HeaderInstance})
+        self.header_ref.mark_used(objects, {P4HeaderInstance, P4HeaderStackInstance})
 
 def mark_used_P4HeaderRefExpression(self, objects, types = None):
     header_instance = objects.get_object(self.name, P4HeaderInstance)
     if header_instance: header_instance.mark()
+    header_stack_instance = objects.get_object(self.name, P4HeaderStackInstance)
+    if header_stack_instance: header_stack_instance.mark()
 
 def mark_used_P4String(self, objects, types = None):
     pass
@@ -208,7 +215,7 @@ def mark_used_P4ParserFunction(self, objects, types = None):
 
 def mark_used_P4ParserExtract(self, objects, types = None):
     global last_extracted
-    self.header_ref.mark_used(objects, {P4HeaderInstance})
+    self.header_ref.mark_used(objects, {P4HeaderInstance, P4HeaderStackInstance})
     last_extracted = self.header_ref.name
 
 def mark_used_P4ParserSetMetadata(self, objects, types = None):
@@ -270,6 +277,7 @@ def mark_used_P4ParserExceptionReturn(self, objects, types = None):
 P4Program.mark_used = mark_used_P4Program
 P4HeaderType.mark_used = mark_used_P4HeaderType
 P4HeaderInstance.mark_used = mark_used_P4HeaderInstance
+P4HeaderStackInstance.mark_used = mark_used_P4HeaderStackInstance
 P4FieldList.mark_used = mark_used_P4FieldList
 P4FieldListCalculation.mark_used = mark_used_P4FieldListCalculation
 P4CalculatedField.mark_used = mark_used_P4CalculatedField

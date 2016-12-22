@@ -79,6 +79,7 @@ class P4HlirDumper:
         P4HeaderInstance.dump_to_p4 = dump_to_p4_P4HeaderInstance
         P4HeaderInstanceRegular.dump_to_p4 = dump_to_p4_P4HeaderInstanceRegular
         P4HeaderInstanceMetadata.dump_to_p4 = dump_to_p4_P4HeaderInstanceMetadata
+        P4HeaderStackInstance.dump_to_p4 = dump_to_p4_P4HeaderStackInstance
         P4FieldList.dump_to_p4 = dump_to_p4_P4FieldList
         P4FieldListCalculation.dump_to_p4 = dump_to_p4_P4FieldListCalculation
         P4CalculatedField.dump_to_p4 = dump_to_p4_P4CalculatedField
@@ -154,6 +155,7 @@ class P4HlirDumper:
             "counter" : p4_counter,
             "meter" : p4_meter,
             "register" : p4_register,
+            "header_stack" : p4_header_instance,
         }
 
         for name, data in primitives.items():
@@ -225,13 +227,10 @@ def dump_to_p4_P4HeaderType(self, hlir):
 def dump_to_p4_P4HeaderInstance(self, hlir):
     pass
 
-def dump_to_p4_P4HeaderInstanceRegular(self, hlir):
-    if self.size:
-        index_range = range(0, self.size.i) + [P4_NEXT, P4_LAST]
-        max_index = self.size.i - 1
-    else:
-        index_range = [None]
-        max_index = None
+def dump_to_p4_P4HeaderStackInstance(self, hlir):
+    assert(self.size)
+    index_range = range(0, self.size.i) + [P4_NEXT, P4_LAST]
+    max_index = self.size.i - 1
     for idx in index_range:
         virtual = False if idx == None or type(idx) is int else True
         g_header_instance = p4_header_instance(
@@ -243,7 +242,17 @@ def dump_to_p4_P4HeaderInstanceRegular(self, hlir):
             virtual = virtual
         )
         g_header_instance._pragmas = self._pragmas.copy()
-                          
+
+def dump_to_p4_P4HeaderInstanceRegular(self, hlir):
+    g_header_instance = p4_header_instance(
+        hlir,
+        self.name, header_type = self.header_type,
+        index = None, max_index = None,
+        filename = self.filename, lineno = self.lineno,
+        metadata = False, initializer = {},
+        virtual = False
+    )
+    g_header_instance._pragmas = self._pragmas.copy()
 
 def dump_to_p4_P4HeaderInstanceMetadata(self, hlir):
     # TODO: improve this crap

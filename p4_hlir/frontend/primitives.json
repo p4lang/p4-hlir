@@ -404,7 +404,7 @@
 	"args" : ["header_stack", "count"],
 	"properties" : {
 	    "header_stack" : {
-		"type" : ["header_instance"],
+		"type" : ["header_stack"],
 		"access" : "write"
 	    },
 	    "count" : {
@@ -420,7 +420,7 @@
 	"args" : ["header_stack", "count"],
 	"properties" : {
 	    "header_stack" : {
-		"type" : ["header_instance"],
+		"type" : ["header_stack"],
 		"access" : "write"
 	    },
 	    "count" : {

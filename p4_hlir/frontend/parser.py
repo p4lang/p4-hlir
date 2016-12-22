@@ -384,9 +384,11 @@ class P4Parser:
     def p_header_instance_2(self, p):
         """ header_instance : HEADER ID ID LBRACKET const_value RBRACKET SEMI
         """
-        p[0] = P4HeaderInstanceRegular(self.get_filename(), p.lineno(1),
-                                       p[2],
-                                       p[3], size = p[5])
+        # p[0] = P4HeaderInstanceRegular(self.get_filename(), p.lineno(1),
+        #                                p[2],
+        #                                p[3], size = p[5])
+        p[0] = P4HeaderStackInstance(self.get_filename(), p.lineno(1),
+                                     p[2], p[3], p[5])
 
     def p_header_instance_error_1(self, p):
         """ header_instance : HEADER error SEMI

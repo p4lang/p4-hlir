@@ -75,6 +75,7 @@ class P4SemanticChecker:
         P4HeaderInstance.check = check_P4HeaderInstance
         P4HeaderInstanceRegular.check = check_P4HeaderInstanceRegular
         P4HeaderInstanceMetadata.check = check_P4HeaderInstanceMetadata
+        P4HeaderStackInstance.check = check_P4HeaderStackInstance
         P4FieldList.check = check_P4FieldList
         P4FieldListCalculation.check = check_P4FieldListCalculation
         P4CalculatedField.check = check_P4CalculatedField
@@ -252,6 +253,8 @@ class P4SemanticChecker:
                     allowed_types.add(Types.field)
                 if "header_instance" in type_:
                     allowed_types.add(Types.header_instance)
+                if "header_stack" in type_:
+                    allowed_types.add(Types.header_stack_instance)
                 if "field_list" in type_:
                     allowed_types.add(Types.field_list)
                 if "field_list_calculation" in type_:
@@ -296,6 +299,15 @@ def import_objects(p4_objects, symbols, objects):
         else:
             objects.add_object(name, obj)
             symbols.add_type(name, obj.get_type_())
+        if isinstance(obj, P4HeaderInstanceRegular):
+            subtype = (Types.header_instance_regular, obj.header_type)
+            symbols.add_type(name, subtype)
+        elif isinstance(obj, P4HeaderInstanceMetadata):
+            subtype = (Types.header_instance_metadata, obj.header_type)
+            symbols.add_type(name, subtype)
+        elif isinstance(obj, P4HeaderStackInstance):
+            subtype = (Types.header_stack_instance, obj.header_type)
+            symbols.add_type(name, subtype)
 
 def import_header_fields(p4_objects, header_fields):
     for obj in p4_objects:
@@ -744,6 +756,9 @@ def check_P4HeaderInstanceMetadata(self, symbols, header_fields, objects, types 
                         % (field, self.name, self.filename, self.lineno, field)
             P4TreeNode.print_error(error_msg)
 
+def check_P4HeaderStackInstance(self, symbols, header_fields, objects, types = None):
+    pass
+
 def check_P4FieldList(self, symbols, header_fields, objects, types = None):
     for entry in self.entries:
         entry.check(symbols, header_fields, objects,
@@ -929,7 +944,8 @@ def check_P4ActionCall(self, symbols, header_fields, objects, types = None):
             {
                 Types.int_, Types.field, Types.header_instance,
                 Types.field_list, Types.field_list_calculation,
-                Types.counter, Types.meter, Types.register
+                Types.counter, Types.meter, Types.register,
+                Types.header_stack_instance
             }
         )
 
@@ -1087,28 +1103,22 @@ def check_P4RefExpression(self, symbols, header_fields, objects, types = None):
         P4TreeNode.print_error(error_msg)
         return False
     type_ = (obj_types & types).pop()
-    # this is super cheap, I need to improve handling of tag stack references
-    if type_ == Types.header_instance:
-        header_instance = objects.get_object(self.name, P4HeaderInstanceRegular)
-        if header_instance and header_instance.size:
-            # dirty hack. We remove the error message and mark the ref with the
-            # "_array_ref" attribute. When this attribute is present, the P4
-            # dumper will replace the stack reference by an instance reference
-            # (the instance at index 0). This is to make push() and pop() work
-            # quickly 
-            self._array_ref = True
-        #     error_msg = "Invalid reference to header instance %s"\
-        #                 " in file %s at line %d:"\
-        #                 " header instance is a tag stack but reference"\
-        #                 " does not specify an index"\
-        #                 % (self.name, self.filename, self.lineno)
-        #     P4TreeNode.print_error(error_msg)
-        #     return False
+    # small hack because the HLIR itself does not have the concept of header
+    # stack reference; instead the P4 dumper will replace the stack reference by
+    # an instance reference (the instance at index 0). This is to make push()
+    # and pop() work quickly
+    if type_ == Types.header_stack_instance:
+        self._array_ref = True
     return True
 
 last_extracted = None
 
 def check_P4FieldRefExpression(self, symbols, header_fields, objects, types = None):
+    def get_header_ref(name):
+        header_ref = objects.get_object(name, P4HeaderInstance)
+        if header_ref is None:
+            header_ref = objects.get_object(name, P4HeaderStackInstance)
+        return header_ref
     # TODO
     global last_extracted
     assert (Types.field in types)
@@ -1121,14 +1131,13 @@ def check_P4FieldRefExpression(self, symbols, header_fields, objects, types = No
                         % (self.filename, self.lineno)
             P4TreeNode.print_error(error_msg)
             return False
-        header_ref = objects.get_object(last_extracted, P4HeaderInstance)
+        header_ref = get_header_ref(last_extracted)
         header_type = objects.get_object(header_ref.header_type, P4HeaderType)
     else:
         if not self.header_ref.check(symbols, header_fields, objects,
                                      {Types.header_instance}):
             return False
-        
-        header_ref = objects.get_object(self.header_ref.name, P4HeaderInstance)
+        header_ref = get_header_ref(self.header_ref.name)
         header_type = objects.get_object(header_ref.header_type, P4HeaderType)
 
     if self.field not in header_fields[header_type.name]:
@@ -1143,29 +1152,30 @@ def check_P4FieldRefExpression(self, symbols, header_fields, objects, types = No
 def check_P4HeaderRefExpression(self, symbols, header_fields, objects, types = None):
     # TODO: improve
     is_header_instance = symbols.has_type(self.name, Types.header_instance)
-    if not is_header_instance:
+    is_stack_instance = symbols.has_type(self.name, Types.header_stack_instance)
+    if not is_header_instance and not is_stack_instance:
         error_msg = "Invalid reference to header instance %s"\
                     " in file %s at line %d:"\
                     " no header instance with this name was declared"\
                     % (self.name, self.filename, self.lineno)
         P4TreeNode.print_error(error_msg)
         return False
-    header_instance = objects.get_object(self.name, P4HeaderInstance)
-    if self.idx and not header_instance.size:
+    if self.idx and is_header_instance:
         error_msg = "Invalid reference to header instance %s"\
                     " in file %s at line %d:"\
                     " header instance is not a tag stack"\
                     % (self.name, self.filename, self.lineno)
         P4TreeNode.print_error(error_msg)
         return False
-    elif self.idx and\
-            type(self.idx) is P4Integer and self.idx.i >= header_instance.size.i:
-        error_msg = "Invalid reference to header instance %s"\
-                    " in file %s at line %d:"\
-                    " index accessed is larger than size"\
-                    % (self.name, self.filename, self.lineno)
-        P4TreeNode.print_error(error_msg)
-        return False
+    elif self.idx and type(self.idx) is P4Integer:
+        header_stack_instance = objects.get_object(self.name, P4HeaderStackInstance)
+        if self.idx.i >= header_stack_instance.size.i:
+            error_msg = "Invalid reference to header instance %s"\
+                        " in file %s at line %d:"\
+                        " index accessed is larger than size"\
+                        % (self.name, self.filename, self.lineno)
+            P4TreeNode.print_error(error_msg)
+            return False
     return True
 
 def check_P4String(self, symbols, header_fields, objects, types = None):
