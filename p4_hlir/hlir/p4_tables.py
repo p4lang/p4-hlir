@@ -215,6 +215,11 @@ def p4_control_flow_to_table_graph(hlir, call_sequence):
     return _p4_control_flow_to_table_graph(hlir, call_sequence,
                                            None, None, visited)
 
+def check_multiple_invocations(table, visited):
+    if table in visited:
+        raise p4_compiler_msg("Table '{}' is invoked multiple times".format(
+            table.name))
+
 def _p4_control_flow_to_table_graph(hlir,
                                     call_sequence, parent_fn,
                                     conditional_barrier,
@@ -228,11 +233,7 @@ def _p4_control_flow_to_table_graph(hlir,
 
     for call in call_sequence:
         if type(call) is p4_table:
-            if call in visited:
-                # TODO: improve
-                raise p4_compiler_msg (
-                    "Table '" + call.name + "' is invoked multiple times."
-                )
+            check_multiple_invocations(call, visited)
             visited.add(call)
             call_entry = call
             next_parents = [call_entry]
@@ -296,6 +297,8 @@ def _p4_control_flow_to_table_graph(hlir,
             next_parents = []
 
             call_entry = call[0]
+            check_multiple_invocations(call_entry, visited)
+            visited.add(call_entry)
             call_entry.control_flow_parent = parent_fn.name
             call_entry.conditional_barrier = conditional_barrier
 
