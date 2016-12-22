@@ -91,7 +91,7 @@ def _find_compatible_headers(hlir):
 
 def _get_headers_in_condition(p4_expression, hdrs):
     try:
-        if p4_expression.op == "valid":
+        if p4_expression.op == "valid" and not p4_expression.right.metadata:
             hdrs.add(p4_expression.right)
         _get_headers_in_condition(p4_expression.left, hdrs)
         _get_headers_in_condition(p4_expression.right, hdrs)
@@ -154,6 +154,8 @@ class Solver():
                 return Solver.FALSE
         assert(type(c) is p4.p4_expression)
         if c.op == "valid":
+            if c.right.metadata:  # a metadata header is always valid in P4
+                return Solver.TRUE
             if hdrs_valid[c.right]:
                 return Solver.TRUE
             else:
