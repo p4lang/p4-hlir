@@ -299,15 +299,6 @@ def import_objects(p4_objects, symbols, objects):
         else:
             objects.add_object(name, obj)
             symbols.add_type(name, obj.get_type_())
-        if isinstance(obj, P4HeaderInstanceRegular):
-            subtype = (Types.header_instance_regular, obj.header_type)
-            symbols.add_type(name, subtype)
-        elif isinstance(obj, P4HeaderInstanceMetadata):
-            subtype = (Types.header_instance_metadata, obj.header_type)
-            symbols.add_type(name, subtype)
-        elif isinstance(obj, P4HeaderStackInstance):
-            subtype = (Types.header_stack_instance, obj.header_type)
-            symbols.add_type(name, subtype)
 
 def import_header_fields(p4_objects, header_fields):
     for obj in p4_objects:

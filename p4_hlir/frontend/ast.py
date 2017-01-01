@@ -34,7 +34,6 @@ class Types:
      control_function,
      parser_exception,
      header_stack_instance) = range(23)
-    type_count=0
 
     types_to_names = {
         header_type : "header type",
