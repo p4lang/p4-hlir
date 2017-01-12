@@ -37,6 +37,10 @@ class CustomInstall(install):
         assert(install_lib is None)
         # we use the platform-dependent install path computed by setuptools
         install_lib = os.path.abspath(self.install_lib)
+        # if a root was specified we remove it from the install path
+        if self.root is not None:
+            assert(install_lib.startswith(self.root))
+            install_lib = install_lib[len(self.root):]
         old_install = (self.old_and_unmanageable or self.single_version_externally_managed)
         # using install.run(self) causes setuptools to ignore install_requires
         # for a complete explanation, refer to
