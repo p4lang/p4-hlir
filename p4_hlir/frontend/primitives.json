@@ -180,7 +180,7 @@
         "properties" : {
             "receiver" : {
                 "type" : ["int", "table_entry_data"],
-                "access" : "write",
+                "access" : "read",
                 "data_width" : "standard_metadata.clone_spec"
             },
             "field_list" : {
@@ -196,8 +196,8 @@
 	"args" : ["clone_spec", "field_list"],
 	"properties" : {
 	    "clone_spec" : {
-		"type" : ["int", "table_entry_data"],
-		"access" : "write",
+		"type" : ["field", "int", "table_entry_data"],
+		"access" : "read",
 		"data_width" : "standard_metadata.clone_spec"
 	    },
 	    "field_list" : {
@@ -213,8 +213,8 @@
 	"args" : ["clone_spec", "field_list"],
 	"properties" : {
 	    "clone_spec" : {
-		"type" : ["int", "table_entry_data"],
-		"access" : "write",
+		"type" : ["field", "int", "table_entry_data"],
+		"access" : "read",
 		"data_width" : "standard_metadata.clone_spec"
 	    },
 	    "field_list" : {
