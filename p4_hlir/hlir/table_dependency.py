@@ -410,22 +410,23 @@ class rmt_table_graph():
         # if there is another path with a highest cost (where cost is given by
         # the most expensive dependency along the path)
         def transitive_reduction_rec(root_table, cur_table, root_neighbors,
-                                     max_type_ = 0):
+                                     max_type_ = 0, cache = {}):
+            if cur_table in cache and cache[cur_table] >= max_type_:
+                return
+            cache[cur_table] = max_type_
             for dependency in cur_table.next_tables.values():
                 if dependency.type_ <= 0: continue
                 max_type_tmp = max(max_type_, dependency.type_)
                 next_table = dependency.to
-                if root_table == cur_table:
-                    # hmm, should not happen
-                    assert(False)
-                    root_neighbors.add(next_table)
-                elif next_table in root_neighbors and\
-                     max_type_tmp >= root_neighbors[next_table]:
+                # should not happen as it would mean a cycle
+                assert(root_table != cur_table)
+                if next_table in root_neighbors and\
+                   max_type_tmp >= root_neighbors[next_table]:
                     root_table.next_tables[next_table].type_ = Dependency.REDUNDANT
                     next_table.incoming[root_table].type_ = Dependency.REDUNDANT
                     del root_neighbors[next_table]
                 transitive_reduction_rec(root_table, next_table, root_neighbors,
-                                         max_type_ = max_type_tmp)
+                                         max_type_ = max_type_tmp, cache = cache)
 
         # apply the algo to every node in the graph
         for table in self._nodes.values():
@@ -437,7 +438,8 @@ class rmt_table_graph():
             for dependency in table.next_tables.values():
                 if dependency.type_ > 0:
                     transitive_reduction_rec(table, dependency.to, neighbors,
-                                             max_type_ = dependency.type_)
+                                             max_type_ = dependency.type_,
+                                             cache = {})
 
         assert( self.validate() )
             
