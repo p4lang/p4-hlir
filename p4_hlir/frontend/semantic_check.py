@@ -1131,7 +1131,7 @@ def check_P4FieldRefExpression(self, symbols, header_fields, objects, types = No
         header_ref = get_header_ref(self.header_ref.name)
         header_type = objects.get_object(header_ref.header_type, P4HeaderType)
 
-    if self.field not in header_fields[header_type.name]:
+    if self.field not in header_fields[header_type.name] and self.field != "valid":
         error_msg = "Invalid reference to field %s in file %s at line %d:"\
                     " header type %s has no field %s"\
                     % (self.field, self.filename, self.lineno,

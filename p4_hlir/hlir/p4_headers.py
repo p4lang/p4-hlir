@@ -210,9 +210,9 @@ class p4_header_instance (p4_object):
                 init_value = self.initializer.get(field[0], 0)
                 assert(type(init_value) is int)
             attrs = self.header_type.attributes[field[0]]
-            self.fields.append(p4_field (hlir,
-                                            self, field[0], field[1], attrs,
-                                            field_offset, init_value))
+            self.fields.append(p4_field(hlir,
+                                        self, field[0], field[1], attrs,
+                                        field_offset, init_value))
             if type(field[1]) is int or type(field[1]) is long:
                 field_offset += field[1]
             else:
@@ -236,6 +236,9 @@ class p4_header_instance (p4_object):
                                                     attrs, field_offset, init_value))
                 else:
                     break
+
+        # adding valid hidden field so that other hlir components can refer to it
+        p4_field(hlir, self, "valid", 1, None, None, None)
 
         delattr(self, "initializer")
 

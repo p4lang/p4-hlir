@@ -301,6 +301,19 @@ class p4_action (p4_object):
             p4_compiler_msg(
                 "Unused arguments in '"+self.name+"'", self.filename, self.lineno, logging.WARNING)
 
+    def check_hidden_field_access(self):
+        for call in self.flat_call_sequence:
+            primitive, args, _ = call
+            for idx, arg in enumerate(args):
+                if isinstance(arg, p4_headers.p4_field):
+                    if arg.name not in {"valid"}:
+                        continue
+                    param = primitive.signature[idx]
+                    access = primitive.signature_flags[param]["access"]
+                    if access == P4_WRITE:
+                        raise p4_compiler_msg("Trying to write to hidden field '{}' in action '{}'".format(arg, self.name),
+                                              self.filename, self.lineno)
+
 def p4_action_validate_types(hlir):
     called_actions = set()
     for table_name in hlir.p4_tables:
@@ -315,6 +328,7 @@ def p4_action_validate_types(hlir):
 
     for action in hlir.p4_actions.values():
         action.flatten(hlir)
+        action.check_hidden_field_access()
 
     for action in hlir.p4_actions.values():
         params = {}
