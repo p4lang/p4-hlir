@@ -131,6 +131,7 @@ class p4_action (p4_object):
             )
 
     def flatten (self, hlir):
+        flat_stack_indices = []
         if self.flat_call_sequence == None:
             self.flat_call_sequence = []
             for call_idx, call in enumerate(self.call_sequence):
@@ -159,8 +160,12 @@ class p4_action (p4_object):
                                 new_call[1][idx] = resolve_expression(subcall_arg)
 
                         self.flat_call_sequence.append(new_call)
+                    flat_stack_indices.extend(call_target.stack_indices)
                 else:
                     self.flat_call_sequence.append((call[0], call[1], [(self,call_idx)]))
+                    flat_stack_indices.append(self.stack_indices[call_idx])
+
+            self.stack_indices = flat_stack_indices
 
             for call in self.flat_call_sequence:
                 def resolve_expression(arg, arg_idx):
