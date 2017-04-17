@@ -437,8 +437,14 @@ def dump_to_p4_P4ActionFunction(self, hlir):
     g_action._pragmas = self._pragmas.copy()
 
 def dump_to_p4_P4ActionCall(self, hlir):
+    # hack to make push and pop (and other primitive actions using header stacks
+    # as parameters) work; the HLIR has no "header stack" type, so we use a
+    # reference to the first header instance in the stack instead and we add an
+    # extra list to keep track of which parameters were initially header stack
+    # references; this way informed backends can recover this information
+    stack_at = [idx for idx, arg in enumerate(self.arg_list) if hasattr(arg, "_array_ref")]
     arg_list = [arg.dump_to_p4(hlir) for arg in self.arg_list]
-    return (self.action.dump_to_p4(hlir), arg_list)
+    return (self.action.dump_to_p4(hlir), arg_list, stack_at)
 
 def dump_to_p4_P4Table(self, hlir):
     match_fields = [read.dump_to_p4(hlir) for read in self.reads]

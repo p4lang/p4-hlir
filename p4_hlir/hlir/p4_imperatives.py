@@ -85,6 +85,14 @@ class p4_action (p4_object):
 
         self.signature_widths = [None] * len(self.signature)
 
+        # hack to make push and pop (and other primitive actions using header
+        # stacks as parameters) work; the HLIR has no "header stack" type, so we
+        # use a reference to the first header instance in the stack instead and
+        # we add an extra list to keep track of which parameters were initially
+        # header stack references; this way informed backends can recover this
+        # information
+        self.stack_indices = []
+
         hlir.p4_actions[self.name] = self
 
     @staticmethod
@@ -101,7 +109,8 @@ class p4_action (p4_object):
                     self.required_params -= 1
 
         for idx, call in enumerate(self.call_sequence):
-            name, arg_list = call
+            name, arg_list, stack_indices = call
+            self.stack_indices.append(stack_indices)
 
             def resolve_expression(arg):
                 if isinstance(arg, p4_expression):
