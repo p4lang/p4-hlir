@@ -109,8 +109,14 @@ class p4_action (p4_object):
                     self.required_params -= 1
 
         for idx, call in enumerate(self.call_sequence):
-            name, arg_list, stack_indices = call
-            self.stack_indices.append(stack_indices)
+            if len(call) == 2:
+                name, arg_list = call
+                self.stack_indices.append([])
+            else:
+                name, arg_list, stack_indices = call
+                self.stack_indices.append(stack_indices)
+                # remove stack_indices from call_sequence
+                self.call_sequence[idx] = (name, arg_list)
 
             def resolve_expression(arg):
                 if isinstance(arg, p4_expression):
