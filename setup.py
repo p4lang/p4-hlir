@@ -78,7 +78,7 @@ class CustomInstallScripts(install_scripts):
 
 setup(
     name = 'p4_hlir',
-    version = '0.9.47',
+    version = '0.9.49',
     install_requires=['ply < 3.10'],
     packages=['p4_hlir','p4_hlir/hlir', 'p4_hlir/frontend',
               'p4_hlir/util', 'p4_hlir/graphs'],

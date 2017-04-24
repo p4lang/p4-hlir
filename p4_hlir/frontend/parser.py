@@ -1708,15 +1708,28 @@ class P4Parser:
         p[0] = p[1]
 
     def p_action_data_list_1(self, p):
-        """ action_data_list : const_value
+        """ action_data_list : action_data_value
         """
         p[0] = [p[1]]
 
     def p_action_data_list_2(self, p):
-        """ action_data_list : const_value COMMA action_data_list
+        """ action_data_list : action_data_value COMMA action_data_list
         """
         p[0] = [p[1]] + p[3]
-    
+
+    def p_action_data_value(self, p):
+        """ action_data_value : const_value
+                              | MINUS const_value %prec UMINUS
+                              | PLUS const_value %prec UMINUS
+        """
+        if p[1] == "-" or p[1] == "+":
+            # the HLIR dumper will be able to process this and this will show up
+            # as a Python integer in the HLIR
+            p[0] = P4UnaryExpression(self.get_filename(), p.lineno(1),
+                                     p[1], p[2])
+        else:
+            p[0] = p[1]
+
     def p_table_min_size_1(self, p):
         """ table_min_size : empty
         """
