@@ -77,9 +77,11 @@ class p4_action (p4_object):
                 raise Exception("Malformed action primitive "+self.name+" is missing type for argument "+param_name)
 
         if not hasattr(self, "call_sequence"):
+            self.is_primitive_action = True
             self.call_sequence = []
             self.flat_call_sequence = []
         else:
+            self.is_primitive_action = False
             self.call_sequence = list(self.call_sequence)
             self.flat_call_sequence = None
 
@@ -167,7 +169,7 @@ class p4_action (p4_object):
 
                         self.flat_call_sequence.append(new_call)
                     flat_stack_indices.extend(call_target.stack_indices)
-                else:
+                elif call_target.is_primitive_action:
                     self.flat_call_sequence.append((call[0], call[1], [(self,call_idx)]))
                     flat_stack_indices.append(self.stack_indices[call_idx])
 
@@ -223,8 +225,7 @@ class p4_action (p4_object):
         args_used = set()
         called_actions.add(self)
 
-        if len(self.call_sequence) == 0:
-            # Primitive action
+        if self.is_primitive_action:
 
             for idx, (binding_action, binding_call, binding_arg, arg) in enumerate(args):
                 # added by Antonin, for line reporting we need the actual action
