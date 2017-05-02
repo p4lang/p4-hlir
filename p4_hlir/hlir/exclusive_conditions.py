@@ -29,11 +29,34 @@ def _get_extracted_headers(parse_state):
 #         return hdr.name
 
 def _find_parser_paths(hlir):
-    def _find_paths(state, paths, current_path, path_hdrs, tag_stacks_index):
+    # Helps reduce the running time of this function by caching visited
+    # states. I claim that new header sets cannot be discovered if we visit the
+    # same parse state, with the same set of previously visited parser states
+    # and the same tag stacks indices.
+    class State:
+        def __init__(self, parse_state, current_path, tag_stacks_index):
+            self.current_state = parse_state
+            self.visited_states = frozenset(current_path)
+            self.stacks = frozenset(tag_stacks_index.items())
+
+        def __eq__(self, other):
+            return (self.current_state == other.current_state)\
+                and (self.visited_states == other.visited_states)\
+                and (self.stacks == other.stacks)
+
+        def __hash__(self):
+            return hash((self.current_state, self.visited_states, self.stacks))
+
+    def _find_paths(state, paths, current_path, path_hdrs, tag_stacks_index,
+                    recursion_states):
+        rec_state = State(state, current_path, tag_stacks_index)
+        if rec_state in recursion_states:
+            return
+        recursion_states.add(rec_state)
         try:
             next_states = set(state.branch_to.values())
         except:
-            paths.append(path_hdrs)
+            paths.add(frozenset(path_hdrs))
             return
         extracted_headers = set()
         for call in state.call_sequence:
@@ -44,7 +67,7 @@ def _find_parser_paths(hlir):
                     base_name = hdr.base_name
                     current_index = tag_stacks_index[base_name]
                     if current_index > hdr.max_index:
-                        paths.append(path_hdrs)
+                        paths.add(frozenset(path_hdrs))
                         return
                     tag_stacks_index[base_name] += 1
                     name = base_name + "[%d]" % current_index
@@ -53,17 +76,18 @@ def _find_parser_paths(hlir):
                 extracted_headers.add(hdr)
 
         if len(extracted_headers & path_hdrs) != 0:
-            paths.append(extracted_headers | path_hdrs)
+            paths.add(frozenset(extracted_headers | path_hdrs))
             return
 
         for next_state in next_states:
             _find_paths(next_state, paths, current_path + [state], 
-                        extracted_headers | path_hdrs, tag_stacks_index.copy())
+                        extracted_headers | path_hdrs, tag_stacks_index.copy(),
+                        recursion_states)
 
-    paths = []
+    paths = set()
     start_state = hlir.p4_parse_states["start"]
-    _find_paths(start_state, paths, [], set(), defaultdict(int))
-    
+    _find_paths(start_state, paths, [], set(), defaultdict(int), set())
+
     return paths
 
 def _find_compatible_headers(hlir):
