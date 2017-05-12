@@ -42,22 +42,39 @@ def dump_table(node, exit_node, visited=None):
     elif type(node) is p4.p4_conditional_node:
         p += "   %s [shape=box label=\"%s\"];\n" % (get_call_name(node), str(node.condition))
 
-    for label, next_node in node.next_.items():
-        if type(node) is p4.p4_table:
-            arrowhead = "normal"
-            if type(label) is str:
-                label_str = " label=\"%s\"" % label
-            else:
-                label_str = " label=\"%s\"" % label.name
-        elif type(node) is p4.p4_conditional_node:
-            label_str = ""
-            if label:
-                arrowhead = "dot"
-            else:
-                arrowhead = "odot"
-        p += "   %s -> %s [arrowhead=%s%s];\n" % (get_call_name(node),
-                                                get_call_name(next_node, exit_node),
-                                                arrowhead, label_str)
+    def add_node_transition(next_node, arrowhead, label):
+        return "   {} -> {} [arrowhead={} label=\"{}\"];\n".format(
+            get_call_name(node), get_call_name(next_node, exit_node),
+            arrowhead, label)
+
+    hit_miss = len({"hit", "miss"} & set(node.next_.keys())) > 0
+
+    def get_action_name(a):
+        if type(a) is str:
+            return a
+        else:
+            return a.name
+
+    next_nodes = set(node.next_.values())
+    if type(node) is p4.p4_table and len(next_nodes) == 1 and (not hit_miss):
+        # png ends up being too big if all action names are displayed (at least
+        # for switch.p4)
+        # actions = ", ".join(a.name for a in node.next_.keys())
+        # actions = "({})".format(actions)
+        next_node = node.next_.values()[0]
+        p += add_node_transition(next_node, "normal", "ALL")
+    else:
+        for label, next_node in node.next_.items():
+            if type(node) is p4.p4_table:
+                p += add_node_transition(next_node, "normal", get_action_name(label))
+            elif type(node) is p4.p4_conditional_node:
+                if label:
+                    arrowhead = "dot"
+                else:
+                    arrowhead = "odot"
+                p += add_node_transition(next_node, arrowhead, "")
+
+    for next_node in next_nodes:
         if next_node and next_node not in visited:
             p += dump_table(next_node, exit_node, visited)
 
