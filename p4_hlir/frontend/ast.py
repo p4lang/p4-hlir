@@ -259,7 +259,7 @@ class P4FieldListCalculation(P4NamedObject):
     def __init__(self, filename, lineno, name, input_list, algo, out_width):
         super(P4FieldListCalculation, self).__init__(filename, lineno, name)
         self.input_list = input_list
-        self.algo = algo
+        self.algo = algo  # can be a list of strings or a simple string
         self.out_width = out_width
 
     def get_type_(self):

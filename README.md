@@ -19,6 +19,8 @@ remaining dependencies:
 - `python-yaml`
 - `graphviz`
 
+Installation and Usage
+----------------------
 
 To install:
 ```

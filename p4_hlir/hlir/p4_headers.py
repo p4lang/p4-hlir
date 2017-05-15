@@ -98,6 +98,11 @@ class p4_field_list_calculation (p4_object):
         if not self.valid_obj:
             return
 
+        if type(self.algorithm) is str:
+            self.algorithms = [self.algorithm]
+        else:
+            self.algorithms = self.algorithm
+
         hlir.p4_field_list_calculations[self.name] = self
 
     @staticmethod

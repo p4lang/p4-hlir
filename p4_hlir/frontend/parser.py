@@ -588,11 +588,22 @@ class P4Parser:
         """
         p[0] = p[1]
 
-    def p_field_list_calculation_declaration(self, p):
+    def p_field_list_calculation_declaration_1(self, p):
         """ field_list_calculation_declaration : \
                 FIELD_LIST_CALCULATION ID LBRACE \
                     INPUT LBRACE input_list RBRACE \
                     ALGORITHM COLON ID SEMI \
+                    OUTPUT_WIDTH COLON const_value SEMI \
+                RBRACE
+        """
+        p[0] = P4FieldListCalculation(self.get_filename(), p.lineno(1),
+                                      p[2], p[6], p[10], p[14])
+
+    def p_field_list_calculation_declaration_2(self, p):
+        """ field_list_calculation_declaration : \
+                FIELD_LIST_CALCULATION ID LBRACE \
+                    INPUT LBRACE input_list RBRACE \
+                    ALGORITHM LBRACE algo_list RBRACE \
                     OUTPUT_WIDTH COLON const_value SEMI \
                 RBRACE
         """
@@ -624,6 +635,16 @@ class P4Parser:
         """ input_list : input_list ID SEMI
         """
         p[0] = p[1] + [P4RefExpression(self.get_filename(), p.lineno(1), p[2])]
+
+    def p_algo_list_1(self, p):
+        """ algo_list : ID SEMI
+        """
+        p[0] = [p[1]]
+
+    def p_algo_list_2(self, p):
+        """ algo_list : algo_list ID SEMI
+        """
+        p[0] = p[1] + [p[2]]
         
     # CALCULATED FIELD
 
