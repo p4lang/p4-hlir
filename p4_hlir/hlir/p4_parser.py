@@ -124,6 +124,7 @@ class p4_parse_state (p4_object):
             return
 
         self.branch_on = []
+        self.bitwidths = []  # bitwidths of the fields being matched on
         self.branch_to = OrderedDict()
         self.prev = OrderedSet()
         self.latest_extraction = None
@@ -188,20 +189,59 @@ class p4_parse_state (p4_object):
             
             # select_exp is a list of field_references
             self.branch_on = []
+            self.bitwidths = []
             for field_ref in select_exp:
                 if type(field_ref) is tuple: # current
                     field_ref = (field_ref[0], field_ref[1])
+                    self.bitwidths.append(field_ref[1])
                 elif field_ref[:6] == "latest":
                     field_ref = p4_field_reference(
                         hlir,
                         self.latest_extraction.name + "." + field_ref[7:]
                     )
+                    self.bitwidths.append(field_ref.width)
                 elif "." in field_ref:
                     field_ref = p4_field_reference(hlir, field_ref)
+                    self.bitwidths.append(field_ref.width)
 
                 self.branch_on.append(field_ref)
-            
+
             self.branch_to = OrderedDict()
+            normalized_values = []
+            def mask():
+                width = sum(self.bitwidths)
+                return (1 << width) - 1
+            def normalize(value):
+                return value & mask()
+
+            def validate_normalized(normalized, original):
+                if P4_DEFAULT in normalized_values:
+                    p4_compiler_msg(
+                        "Select case '{}' in state '{}' appears after 'default' case and will be ignored".format(original, self.name),
+                        self.filename, self.lineno, logging.WARN)
+                    return False
+                if normalized == P4_DEFAULT:
+                    return True
+                if isinstance(normalized, p4_parse_value_set):
+                    if normalized in normalized_values:
+                        p4_compiler_msg(
+                            "Select case '{}' in state '{}' is a duplicate and will be ignored".format(original, self.name),
+                            self.filename, self.lineno, logging.WARN)
+                        return False
+                    return True
+                for existing in normalized_values:
+                    v1, m1 = existing
+                    v2, m2 = normalized
+                    # This is not complete; detecting that "v2 mask m2" is
+                    # included in "v1 mask m1" is non-trivial so we only check
+                    # for the most basic case
+                    if (v2 & m1) == (v1 & m1):
+                        p4_compiler_msg(
+                            "Select case '{}' in state '{}' is redundant with a previous one and will be ignored".format(original, self.name),
+                            self.filename, self.lineno, logging.WARN)
+                        return False
+                return True
+
             for case in select_cases:
                 value_list = case[0]
                 next_state = self.resolve_parse_target(hlir, case[1])
@@ -212,14 +252,26 @@ class p4_parse_state (p4_object):
                         # still need to check that this is a valid reference
                         value_set_name = value_or_masked[1]
                         branch_case = hlir.p4_parse_value_sets[value_set_name]
+                        normalized = branch_case
+                        original = value_set_name
                     elif value_type == "default":
                         branch_case = P4_DEFAULT
+                        normalized = branch_case
+                        original = "default"
                     elif value_type == "value":
                         branch_case = value_or_masked[1]
+                        normalized = (normalize(value_or_masked[1]), mask())
+                        original = "{}".format(value_or_masked[1])
                     elif value_type == "masked_value":
                         branch_case = (value_or_masked[1], value_or_masked[2])
+                        normalized = (normalize(value_or_masked[1]),
+                                      normalize(value_or_masked[2]))
+                        original = "{} mask {}".format(
+                            value_or_masked[1], value_or_masked[2])
 
-                    self.branch_to[branch_case] = next_state
+                    if validate_normalized(normalized, original):
+                        normalized_values.append(normalized)
+                        self.branch_to[branch_case] = next_state
 
         else:
             assert(False)
