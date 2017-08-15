@@ -218,12 +218,11 @@ class P4Lexer:
             t.lexer.begin('ppline')
             self.pp_line = self.pp_filename = None
         else:
-            return t
-            # print "invalid '#' character at line", t.lexer.lineno
-            # # skip rest of line...
-            # line_start = self.lexer.lexdata.rfind('\n', 0, t.lexpos)
-            # line_end = self.lexer.lexdata.find('\n', t.lexpos, -1)
-            # t.lexer.skip(line_end - line_start)
+            self._error("unexpected '#' character", t)
+            # skip rest of line...
+            line_start = self.lexer.lexdata.rfind('\n', 0, t.lexpos) + 1
+            line_end = self.lexer.lexdata.find('\n', t.lexpos, -1)
+            t.lexer.skip(line_end - line_start)
 
     def t_pragma_NEWLINE(self, t):
         r'\n'
