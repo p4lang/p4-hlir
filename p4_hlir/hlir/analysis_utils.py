@@ -52,7 +52,10 @@ def get_all_subfields(field, field_set):
         return
     elif isinstance(field, int):
         return
+    elif field == p4.P4_PAYLOAD:
+        return
     else:
+        print "unexpected type {}".format(type(field))
         assert(False)
 
 # Retrieve all the fields touched by an action. Returns a tuple (fields_read,
