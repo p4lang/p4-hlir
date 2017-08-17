@@ -216,7 +216,7 @@ class Solver():
                 _get_headers_in_condition(c, used_hdrs)
             
 
-        if (used_hdrs & dangerous_hdrs): return False
+        if (used_hdrs & dangerous_hdrs): return None
 
         used_hdrs_ordered = list(used_hdrs)
         used_hdrs_valid = {}

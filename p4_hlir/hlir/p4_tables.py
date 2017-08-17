@@ -437,13 +437,13 @@ def _set_modified_hdrs(hlir, entry_point, modified_hdrs):
         if a in {True, False}:
             full_modified_hdrs = modified_hdrs
         elif a in {"hit", "miss"}:
-            full_modified_hdrs = modified_hdrs & _find_modified_hdrs(set(entry_point.actions))
+            full_modified_hdrs = modified_hdrs | _find_modified_hdrs(set(entry_point.actions))
         else:
-            full_modified_hdrs = modified_hdrs & _find_modified_hdrs(set([a]))
+            full_modified_hdrs = modified_hdrs | _find_modified_hdrs(set([a]))
         try:
-            entry_point._modified_hdrs &= full_modified_hdrs
+            entry_point._modified_hdrs |= full_modified_hdrs
         except AttributeError:
-            entry_point._modified_hdrs = full_modified_hdrs
+            entry_point._modified_hdrs = full_modified_hdrs.copy()
         _set_modified_hdrs(hlir, nt, full_modified_hdrs)
 
 def _find_unused_nodes_step(entry_point):
@@ -570,7 +570,7 @@ def _remove_unused_conditions(hlir):
         assert(not (conditions_used & removed_conditions))
 
         for c in removed_conditions:
-            print "removing useless condition:", c
+            print "removing useless condition:", c, c.condition
             # print c.next_
             c._mark_used = False
             change = True
