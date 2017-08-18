@@ -235,7 +235,7 @@ class p4_parse_state (p4_object):
                     # This is not complete; detecting that "v2 mask m2" is
                     # included in "v1 mask m1" is non-trivial so we only check
                     # for the most basic case
-                    if (v2 & m1) == (v1 & m1):
+                    if ((v2 & m1) == (v1 & m1)) and m2 == mask():
                         p4_compiler_msg(
                             "Select case '{}' in state '{}' is redundant with a previous one and will be ignored".format(original, self.name),
                             self.filename, self.lineno, logging.WARN)
