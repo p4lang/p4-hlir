@@ -51,7 +51,8 @@ class p4_compiler_msg(Exception):
     messages = []
     message_count = {}
 
-    def __init__(self, message, filename = None, lineno = None, level=logging.ERROR, context=None):
+    def __init__(self, message, filename = None, lineno = None,
+                 level=logging.ERROR):
         self.message = message
         self.level = level
         self.filename = filename
@@ -81,6 +82,14 @@ def p4_compiler_msg_reset():
     p4_compiler_msg.messages = []
     p4_compiler_msg.message_count = {}
 
+def p4_compiler_msg_print(reset=True):
+    for message in sorted(p4_compiler_msg.messages,
+                          key=lambda k: (getattr(k, 'level'),
+                                         getattr(k, 'filename'),
+                                         getattr(k, 'lineno'))):
+        print message
+    if reset:
+        p4_compiler_msg_reset()
 
 class p4_enum (object):
     """

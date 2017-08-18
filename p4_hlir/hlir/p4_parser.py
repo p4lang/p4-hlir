@@ -271,6 +271,15 @@ class p4_parse_state (p4_object):
 
                     if validate_normalized(normalized, original):
                         normalized_values.append(normalized)
+                    # We should really not be adding this case to the branch_to
+                    # dictionary if validate_normalized returned False. However,
+                    # a lot of existing P4 code relies on so-called "dummy
+                    # transitions" in parser states which happen after the
+                    # DEFAULT transition. These dummy transitions are used to
+                    # increase the number of edges in the parse graph and
+                    # therefore constrain the topological sorting of headers
+                    # which determines the deparser flow.
+                    if branch_case not in self.branch_to:
                         self.branch_to[branch_case] = next_state
 
         else:

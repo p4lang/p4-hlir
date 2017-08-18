@@ -15,6 +15,7 @@
 # limitations under the License.
 
 from p4_hlir.main import HLIR
+import p4_hlir.hlir.p4 as p4
 import argparse
 import logging
 import json
@@ -50,6 +51,7 @@ def main():
         with open(primitive_f, 'r') as fp:
             h.add_primitives(json.load(fp))
     success = h.build()
+    p4.p4_compiler_msg_print()
 
     if args.dump_hlir and success:
         try:

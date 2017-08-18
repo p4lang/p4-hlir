@@ -19,6 +19,7 @@ import os
 import sys
 from p4_hlir.main import HLIR
 import p4_hlir.graphs.dot as dot
+import p4_hlir.hlir.p4 as p4
 import json
 import subprocess
 
@@ -103,7 +104,9 @@ def main():
         with open(primitive_f, 'r') as fp:
             h.add_primitives(json.load(fp))
 
-    if not h.build():
+    success = h.build()
+    p4.p4_compiler_msg_print()
+    if not success:
         print "Error while building HLIR"
         sys.exit(1)
 

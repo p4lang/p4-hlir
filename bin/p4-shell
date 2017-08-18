@@ -20,6 +20,7 @@ shell to explore it.
 """
 
 from p4_hlir.main import HLIR
+import p4_hlir.hlir.p4 as p4
 import code
 import argparse
 import os
@@ -38,6 +39,7 @@ def main():
 
     h = HLIR(*args.sources)
     h.build()
+    p4.p4_compiler_msg_print()
 
     try:
         # Tab completion
