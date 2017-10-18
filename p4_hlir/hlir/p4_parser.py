@@ -230,6 +230,9 @@ class p4_parse_state (p4_object):
                         return False
                     return True
                 for existing in normalized_values:
+                    if isinstance(existing, p4_parse_value_set):
+                        continue
+
                     v1, m1 = existing
                     v2, m2 = normalized
                     # This is not complete; detecting that "v2 mask m2" is
