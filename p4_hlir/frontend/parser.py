@@ -870,12 +870,14 @@ class P4Parser:
         """
         self.print_error(p.lineno(1),
                          "Invalid statement in parser function body")
+        p[0] = []
 
     def p_extract_or_set_statement_list_error_2(self, p):
         """ extract_or_set_statement_list : extract_or_set_statement_list error SEMI
         """
         self.print_error(p.lineno(2),
                          "Invalid statement in parser function body")
+        p[0] = p[1]
 
     def p_extract_or_set_statement(self, p):
         """ extract_or_set_statement : extract_statement
@@ -1439,8 +1441,9 @@ class P4Parser:
     def p_action_function_declaration_error_1(self, p):
         """ action_function_declaration : ACTION action_header LBRACE error RBRACE
         """
+        action_name = p[1][0]
         self.print_error(p.lineno(1),
-                         "Error in body of action function %s" % p[2])
+                         "Error in body of action function '%s'" % action_name)
 
     def p_action_function_declaration_error_2(self, p):
         """ action_function_declaration : ACTION error RBRACE
@@ -1469,7 +1472,7 @@ class P4Parser:
         """ action_header : ID LPAREN error RPAREN
         """
         self.print_error(p.lineno(1),
-                         "Invalid param list for action function %s" % p[2])
+                         "Invalid param list for action function '%s'" % p[1])
 
     def p_action_statement_list_1(self, p):
         """ action_statement_list : empty
